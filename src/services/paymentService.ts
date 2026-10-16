@@ -251,5 +251,247 @@ export const paymentService = {
     } catch {
       return this.getRecentPayments(limit, academicYearId);
     }
+  },
+
+  async updateSppCell(
+    studentId: string,
+    academicYearId: string,
+    month: string,
+    data: {
+      status: BillStatus;
+      paymentDate?: string;
+      amount?: number;
+      paymentMethod?: string;
+    }
+  ): Promise<void> {
+    // 1. Sync localStore
+    localStore.updateSppCell(studentId, academicYearId, month, data);
+
+    if (!isSupabaseConfigured) return;
+
+    try {
+      // 2. Find or create SPP category
+      let sppCatId: string;
+      const { data: cats } = await supabase.from('billing_categories').select('id, name').ilike('name', '%spp%').limit(1);
+      if (cats && cats.length > 0) {
+        sppCatId = cats[0].id;
+      } else {
+        const { data: newCat } = await supabase.from('billing_categories').insert([{
+          name: 'SPP',
+          category_type: 'monthly',
+          is_active: true
+        }]).select().single();
+        sppCatId = newCat.id;
+      }
+
+      // 3. Find or create bill for this student, month, and academic year
+      let billId: string;
+      let billAmount: number = data.amount || 1335000;
+
+      const { data: existingBill } = await supabase
+        .from('bills')
+        .select('id, amount, status')
+        .eq('student_id', studentId)
+        .eq('academic_year_id', academicYearId)
+        .eq('category_id', sppCatId)
+        .eq('billing_period', month)
+        .maybeSingle();
+
+      if (existingBill) {
+        billId = existingBill.id;
+        billAmount = Number(existingBill.amount);
+      } else {
+        const { data: newBill, error: bErr } = await supabase
+          .from('bills')
+          .insert([{
+            student_id: studentId,
+            academic_year_id: academicYearId,
+            category_id: sppCatId,
+            billing_period: month,
+            amount: billAmount,
+            status: data.status,
+            description: `SPP Bulan ${month}`
+          }])
+          .select()
+          .single();
+
+        if (bErr) throw bErr;
+        billId = newBill.id;
+      }
+
+      // 4. Delete existing payment allocations for this bill
+      const { data: existingAllocs } = await supabase
+        .from('payment_allocations')
+        .select('id, payment_id')
+        .eq('bill_id', billId);
+
+      if (existingAllocs && existingAllocs.length > 0) {
+        const pmtIds = existingAllocs.map((a: any) => a.payment_id);
+        await supabase.from('payment_allocations').delete().eq('bill_id', billId);
+        await supabase.from('payments').delete().in('id', pmtIds);
+      }
+
+      // 5. Apply new status
+      if ((data.status === 'Lunas' || data.status === 'Belum Lunas') && data.paymentDate) {
+        const payAmount = data.amount || billAmount;
+        const dateStr = data.paymentDate.replace(/-/g, '');
+        const trxNum = `TRX-${dateStr}-SPP-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+
+        const { data: pmt, error: pErr } = await supabase
+          .from('payments')
+          .insert([{
+            transaction_number: trxNum,
+            student_id: studentId,
+            payment_date: data.paymentDate,
+            amount: payAmount,
+            payment_method: data.paymentMethod || 'Tunai',
+            notes: `Pembayaran SPP ${month} (Edit Langsung)`,
+            created_by: 'Petugas Keuangan',
+            status: 'valid'
+          }])
+          .select()
+          .single();
+
+        if (pErr) throw pErr;
+
+        await supabase.from('payment_allocations').insert([{
+          payment_id: pmt.id,
+          bill_id: billId,
+          allocated_amount: payAmount
+        }]);
+
+        const finalStatus = payAmount >= billAmount ? 'Lunas' : 'Belum Lunas';
+        await supabase.from('bills').update({
+          status: finalStatus,
+          updated_at: new Date().toISOString()
+        }).eq('id', billId);
+      } else {
+        await supabase.from('bills').update({
+          status: data.status,
+          updated_at: new Date().toISOString()
+        }).eq('id', billId);
+      }
+    } catch (err) {
+      console.error('Error in paymentService.updateSppCell for Supabase:', err);
+      throw err;
+    }
+  },
+
+  async updateNonSppCell(
+    studentId: string,
+    academicYearId: string,
+    categoryName: string,
+    paidAmount: number,
+    paymentDate: string = new Date().toISOString().split('T')[0]
+  ): Promise<void> {
+    // 1. Sync localStore
+    localStore.updateNonSppCell(studentId, academicYearId, categoryName, paidAmount, paymentDate);
+
+    if (!isSupabaseConfigured) return;
+
+    try {
+      // 2. Find or create category
+      let catId: string;
+      const { data: cats } = await supabase.from('billing_categories').select('id, name').ilike('name', `%${categoryName}%`).limit(1);
+      if (cats && cats.length > 0) {
+        catId = cats[0].id;
+      } else {
+        const { data: newCat } = await supabase.from('billing_categories').insert([{
+          name: categoryName,
+          category_type: 'one_time',
+          is_active: true
+        }]).select().single();
+        catId = newCat.id;
+      }
+
+      // 3. Find or create bill
+      let billId: string;
+      let billAmount: number = paidAmount > 0 ? paidAmount : 1000000;
+
+      const { data: existingBill } = await supabase
+        .from('bills')
+        .select('id, amount, status')
+        .eq('student_id', studentId)
+        .eq('academic_year_id', academicYearId)
+        .eq('category_id', catId)
+        .maybeSingle();
+
+      if (existingBill) {
+        billId = existingBill.id;
+        billAmount = Number(existingBill.amount);
+      } else {
+        const { data: newBill, error: bErr } = await supabase
+          .from('bills')
+          .insert([{
+            student_id: studentId,
+            academic_year_id: academicYearId,
+            category_id: catId,
+            billing_period: null,
+            amount: billAmount,
+            status: 'Belum Dibayar',
+            description: `Tagihan ${categoryName}`
+          }])
+          .select()
+          .single();
+
+        if (bErr) throw bErr;
+        billId = newBill.id;
+      }
+
+      // 4. Delete old allocations for this bill
+      const { data: existingAllocs } = await supabase
+        .from('payment_allocations')
+        .select('id, payment_id')
+        .eq('bill_id', billId);
+
+      if (existingAllocs && existingAllocs.length > 0) {
+        const pmtIds = existingAllocs.map((a: any) => a.payment_id);
+        await supabase.from('payment_allocations').delete().eq('bill_id', billId);
+        await supabase.from('payments').delete().in('id', pmtIds);
+      }
+
+      // 5. If paidAmount > 0, insert new payment
+      if (paidAmount > 0) {
+        const dateStr = paymentDate.replace(/-/g, '');
+        const trxNum = `TRX-${dateStr}-${categoryName.substring(0, 3).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+
+        const { data: pmt, error: pErr } = await supabase
+          .from('payments')
+          .insert([{
+            transaction_number: trxNum,
+            student_id: studentId,
+            payment_date: paymentDate,
+            amount: paidAmount,
+            payment_method: 'Tunai',
+            notes: `Pembayaran ${categoryName} (Edit Langsung)`,
+            created_by: 'Petugas Keuangan',
+            status: 'valid'
+          }])
+          .select()
+          .single();
+
+        if (pErr) throw pErr;
+
+        await supabase.from('payment_allocations').insert([{
+          payment_id: pmt.id,
+          bill_id: billId,
+          allocated_amount: paidAmount
+        }]);
+
+        const finalStatus = paidAmount >= billAmount ? 'Lunas' : 'Belum Lunas';
+        await supabase.from('bills').update({
+          status: finalStatus,
+          updated_at: new Date().toISOString()
+        }).eq('id', billId);
+      } else {
+        await supabase.from('bills').update({
+          status: 'Belum Dibayar',
+          updated_at: new Date().toISOString()
+        }).eq('id', billId);
+      }
+    } catch (err) {
+      console.error('Error in paymentService.updateNonSppCell for Supabase:', err);
+      throw err;
+    }
   }
 };

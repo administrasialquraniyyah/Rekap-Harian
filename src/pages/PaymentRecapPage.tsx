@@ -19,6 +19,7 @@ import {
 import { useApp } from '../context/AppContext';
 import { studentService } from '../services/studentService';
 import { billingService, SPP_MONTHS } from '../services/billingService';
+import { paymentService } from '../services/paymentService';
 import { excelService } from '../services/excelService';
 import { localStore } from '../services/dataStore';
 import { Student, Bill, UnitType, BillStatus } from '../types/database';
@@ -217,11 +218,12 @@ export const PaymentRecapPage: React.FC = () => {
   };
 
   // Save SPP In-Cell Edit
-  const handleSaveSppEdit = (status: BillStatus) => {
+  // Save SPP In-Cell Edit
+  const handleSaveSppEdit = async (status: BillStatus) => {
     if (!editingSpp || !selectedAcademicYearId) return;
 
     try {
-      localStore.updateSppCell(editingSpp.student_id, selectedAcademicYearId, editingSpp.month, {
+      await paymentService.updateSppCell(editingSpp.student_id, selectedAcademicYearId, editingSpp.month, {
         status: status,
         paymentDate: editingSpp.current_date,
         amount: Number(editingSpp.paid_amount || editingSpp.spp_nominal),
@@ -229,7 +231,7 @@ export const PaymentRecapPage: React.FC = () => {
 
       showToast(`SPP ${editingSpp.month} untuk ${editingSpp.student_name} berhasil diperbarui!`, 'success');
       setEditingSpp(null);
-      loadRecap();
+      await loadRecap();
       triggerRefresh();
     } catch (err: any) {
       showToast('Gagal mengupdate cell: ' + err.message, 'error');
@@ -250,12 +252,12 @@ export const PaymentRecapPage: React.FC = () => {
   };
 
   // Save Non-SPP In-Cell Edit
-  const handleSaveNonSppEdit = () => {
+  const handleSaveNonSppEdit = async () => {
     if (!editingNonSpp || !selectedAcademicYearId) return;
 
     try {
       const nominal = Number(editingNonSpp.input_amount || 0);
-      localStore.updateNonSppCell(
+      await paymentService.updateNonSppCell(
         editingNonSpp.student_id,
         selectedAcademicYearId,
         editingNonSpp.category_name,
@@ -265,7 +267,7 @@ export const PaymentRecapPage: React.FC = () => {
 
       showToast(`Pembayaran ${editingNonSpp.category_name} untuk ${editingNonSpp.student_name} berhasil diupdate!`, 'success');
       setEditingNonSpp(null);
-      loadRecap();
+      await loadRecap();
       triggerRefresh();
     } catch (err: any) {
       showToast('Gagal menyimpan: ' + err.message, 'error');
