@@ -634,26 +634,29 @@ export const DashboardPage: React.FC = () => {
       </div>
 
       {/* REKAP STATUS SISWA & KELAS (Requested by user) */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-        <div className="px-6 py-4 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50/60">
+      <div className="bg-white rounded-2xl border border-slate-200/90 shadow-xs overflow-hidden">
+        {/* Header Section */}
+        <div className="px-6 py-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white">
           <div>
             <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-600"></span>
-              <h3 className="text-base font-bold text-slate-800">
-                Rekap Siswa Tiap Kelas & Jenjang (Jenis Kelamin L/P & Status Administrasi)
+              <span className="w-2 h-2 rounded-full bg-emerald-600"></span>
+              <h3 className="text-base font-bold text-slate-800 tracking-tight">
+                Rekapitulasi Siswa Tiap Kelas & Jenjang
               </h3>
             </div>
             <p className="text-xs text-slate-500 mt-0.5">
-              Rincian lengkap sebaran jenis kelamin (Laki-laki / Perempuan) serta status reguler (mampu), bebas biaya (yatim), dan keringanan/beasiswa di tiap tingkatan kelas.
+              Distribusi jenis kelamin (L/P) dan status administrasi pembiayaan (Mampu, Bebas Yatim, Beasiswa/Dhuafa).
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
-            <div className="inline-flex rounded-lg border border-slate-200 p-0.5 bg-white text-xs font-semibold">
+          <div className="flex items-center gap-2.5">
+            <div className="inline-flex rounded-lg border border-slate-200 p-0.5 bg-slate-50 text-xs font-medium">
               <button
                 onClick={() => setClassRecapUnitFilter('ALL')}
                 className={`px-3 py-1.5 rounded-md transition ${
-                  classRecapUnitFilter === 'ALL' ? 'bg-emerald-800 text-white' : 'text-slate-600 hover:bg-slate-50'
+                  classRecapUnitFilter === 'ALL'
+                    ? 'bg-white text-slate-800 font-bold shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
                 Semua Jenjang
@@ -661,7 +664,9 @@ export const DashboardPage: React.FC = () => {
               <button
                 onClick={() => setClassRecapUnitFilter('SMP IT')}
                 className={`px-3 py-1.5 rounded-md transition ${
-                  classRecapUnitFilter === 'SMP IT' ? 'bg-emerald-800 text-white' : 'text-slate-600 hover:bg-slate-50'
+                  classRecapUnitFilter === 'SMP IT'
+                    ? 'bg-white text-emerald-800 font-bold shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
                 SMP IT
@@ -669,7 +674,9 @@ export const DashboardPage: React.FC = () => {
               <button
                 onClick={() => setClassRecapUnitFilter('SMA IT')}
                 className={`px-3 py-1.5 rounded-md transition ${
-                  classRecapUnitFilter === 'SMA IT' ? 'bg-emerald-800 text-white' : 'text-slate-600 hover:bg-slate-50'
+                  classRecapUnitFilter === 'SMA IT'
+                    ? 'bg-white text-blue-800 font-bold shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
                 SMA IT
@@ -678,149 +685,122 @@ export const DashboardPage: React.FC = () => {
 
             <button
               onClick={handleExportClassRecap}
-              className="flex items-center gap-1.5 px-3 py-1.5 border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-lg text-xs font-bold transition shadow-xs"
+              className="flex items-center gap-1.5 px-3 py-1.5 border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-lg text-xs font-semibold transition shadow-xs"
             >
-              <Download className="w-3.5 h-3.5 text-emerald-700" />
-              <span>Export Rekap Siswa</span>
+              <Download className="w-3.5 h-3.5 text-slate-600" />
+              <span>Export Excel</span>
             </button>
           </div>
         </div>
 
-        {/* Visual Cards: Gender & Administrative Status */}
-        <div className="p-6 border-b border-slate-100 grid grid-cols-2 sm:grid-cols-5 gap-3 bg-slate-50/40">
-          <div className="bg-white p-3.5 rounded-xl border border-sky-100 shadow-xs flex items-center justify-between">
-            <div>
-              <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Laki-laki (L)</p>
-              <h4 className="text-xl font-black text-sky-700 mt-0.5">{totalLaki} Siswa</h4>
-              <p className="text-[11px] text-sky-600 font-medium">
-                {activeStudentsCount > 0 ? ((totalLaki / activeStudentsCount) * 100).toFixed(1) : 0}% santri putra
-              </p>
-            </div>
-            <div className="w-9 h-9 rounded-lg bg-sky-50 text-sky-600 flex items-center justify-center font-bold">
-              <Users className="w-5 h-5" />
+        {/* Compact & Elegant Stat Strip */}
+        <div className="grid grid-cols-2 sm:grid-cols-5 divide-y sm:divide-y-0 sm:divide-x divide-slate-100 bg-slate-50/50 border-b border-slate-100">
+          <div className="px-5 py-3">
+            <span className="text-[11px] font-medium text-slate-500 uppercase tracking-wide">Santri Putra (L)</span>
+            <div className="flex items-baseline gap-2 mt-0.5">
+              <span className="text-xl font-bold text-slate-800 tabular-nums">{totalLaki}</span>
+              <span className="text-[11px] text-slate-500 font-medium">
+                ({activeStudentsCount > 0 ? ((totalLaki / activeStudentsCount) * 100).toFixed(1) : 0}%)
+              </span>
             </div>
           </div>
 
-          <div className="bg-white p-3.5 rounded-xl border border-rose-100 shadow-xs flex items-center justify-between">
-            <div>
-              <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Perempuan (P)</p>
-              <h4 className="text-xl font-black text-rose-700 mt-0.5">{totalPerempuan} Siswi</h4>
-              <p className="text-[11px] text-rose-600 font-medium">
-                {activeStudentsCount > 0 ? ((totalPerempuan / activeStudentsCount) * 100).toFixed(1) : 0}% santri putri
-              </p>
-            </div>
-            <div className="w-9 h-9 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center font-bold">
-              <Users className="w-5 h-5" />
+          <div className="px-5 py-3">
+            <span className="text-[11px] font-medium text-slate-500 uppercase tracking-wide">Santri Putri (P)</span>
+            <div className="flex items-baseline gap-2 mt-0.5">
+              <span className="text-xl font-bold text-slate-800 tabular-nums">{totalPerempuan}</span>
+              <span className="text-[11px] text-slate-500 font-medium">
+                ({activeStudentsCount > 0 ? ((totalPerempuan / activeStudentsCount) * 100).toFixed(1) : 0}%)
+              </span>
             </div>
           </div>
 
-          <div className="bg-white p-3.5 rounded-xl border border-emerald-100 shadow-xs flex items-center justify-between">
-            <div>
-              <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Mampu (Reguler)</p>
-              <h4 className="text-xl font-black text-emerald-800 mt-0.5">{totalMampu} Siswa</h4>
-              <p className="text-[11px] text-emerald-600 font-medium">
-                {activeStudentsCount > 0 ? ((totalMampu / activeStudentsCount) * 100).toFixed(1) : 0}% dari total
-              </p>
-            </div>
-            <div className="w-9 h-9 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center font-bold">
-              <CheckCircle className="w-5 h-5" />
+          <div className="px-5 py-3">
+            <span className="text-[11px] font-medium text-slate-500 uppercase tracking-wide">Mampu (Reguler)</span>
+            <div className="flex items-baseline gap-2 mt-0.5">
+              <span className="text-xl font-bold text-emerald-700 tabular-nums">{totalMampu}</span>
+              <span className="text-[11px] text-emerald-600/80 font-medium">
+                ({activeStudentsCount > 0 ? ((totalMampu / activeStudentsCount) * 100).toFixed(1) : 0}%)
+              </span>
             </div>
           </div>
 
-          <div className="bg-white p-3.5 rounded-xl border border-purple-100 shadow-xs flex items-center justify-between">
-            <div>
-              <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Yatim (Free)</p>
-              <h4 className="text-xl font-black text-purple-800 mt-0.5">{totalYatim} Siswa</h4>
-              <p className="text-[11px] text-purple-600 font-medium">
-                Bebas SPP ({activeStudentsCount > 0 ? ((totalYatim / activeStudentsCount) * 100).toFixed(1) : 0}%)
-              </p>
-            </div>
-            <div className="w-9 h-9 rounded-lg bg-purple-50 text-purple-700 flex items-center justify-center font-bold">
-              <HeartHandshake className="w-5 h-5" />
+          <div className="px-5 py-3">
+            <span className="text-[11px] font-medium text-slate-500 uppercase tracking-wide">Yatim (Free)</span>
+            <div className="flex items-baseline gap-2 mt-0.5">
+              <span className="text-xl font-bold text-slate-800 tabular-nums">{totalYatim}</span>
+              <span className="text-[11px] text-slate-500 font-medium">
+                ({activeStudentsCount > 0 ? ((totalYatim / activeStudentsCount) * 100).toFixed(1) : 0}%)
+              </span>
             </div>
           </div>
 
-          <div className="bg-white p-3.5 rounded-xl border border-blue-100 shadow-xs flex items-center justify-between col-span-2 sm:col-span-1">
-            <div>
-              <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Lainnya / Beasiswa</p>
-              <h4 className="text-xl font-black text-blue-800 mt-0.5">{totalLainnya} Siswa</h4>
-              <p className="text-[11px] text-blue-600 font-medium">
-                Subsidi ({activeStudentsCount > 0 ? ((totalLainnya / activeStudentsCount) * 100).toFixed(1) : 0}%)
-              </p>
-            </div>
-            <div className="w-9 h-9 rounded-lg bg-blue-50 text-blue-700 flex items-center justify-center font-bold">
-              <Award className="w-5 h-5" />
+          <div className="px-5 py-3 col-span-2 sm:col-span-1">
+            <span className="text-[11px] font-medium text-slate-500 uppercase tracking-wide">Beasiswa / Lainnya</span>
+            <div className="flex items-baseline gap-2 mt-0.5">
+              <span className="text-xl font-bold text-slate-800 tabular-nums">{totalLainnya}</span>
+              <span className="text-[11px] text-slate-500 font-medium">
+                ({activeStudentsCount > 0 ? ((totalLainnya / activeStudentsCount) * 100).toFixed(1) : 0}%)
+              </span>
             </div>
           </div>
         </div>
 
-        {/* Breakdown Table */}
+        {/* Clean, Refined Table */}
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse text-xs">
             <thead>
-              <tr className="bg-slate-800 text-white font-bold uppercase tracking-wider text-[11px]">
-                <th className="py-3 px-4 border-b border-slate-700 w-12 text-center">No</th>
-                <th className="py-3 px-4 border-b border-slate-700">Jenjang</th>
-                <th className="py-3 px-4 border-b border-slate-700 text-center">Kelas</th>
-                <th className="py-3 px-4 border-b border-slate-700 text-right bg-sky-950/60 text-sky-200">
-                  L (Laki-laki)
-                </th>
-                <th className="py-3 px-4 border-b border-slate-700 text-right bg-rose-950/60 text-rose-200">
-                  P (Perempuan)
-                </th>
-                <th className="py-3 px-4 border-b border-slate-700 text-right bg-emerald-900/40">
-                  Mampu (Reguler)
-                </th>
-                <th className="py-3 px-4 border-b border-slate-700 text-right bg-purple-900/40">
-                  Yatim (Free)
-                </th>
-                <th className="py-3 px-4 border-b border-slate-700 text-right bg-blue-900/40">
-                  Lainnya (Beasiswa/Dhuafa)
-                </th>
-                <th className="py-3 px-4 border-b border-slate-700 text-right bg-slate-900">
-                  Total Siswa Kelas
-                </th>
-                <th className="py-3 px-4 border-b border-slate-700 text-center">
-                  Rasio Mampu
-                </th>
+              <tr className="bg-slate-50/80 text-slate-600 font-semibold uppercase tracking-wider text-[11px] border-b border-slate-200">
+                <th className="py-2.5 px-4 w-12 text-center text-slate-400">No</th>
+                <th className="py-2.5 px-4">Jenjang</th>
+                <th className="py-2.5 px-4 text-center">Kelas</th>
+                <th className="py-2.5 px-4 text-right">L (Putra)</th>
+                <th className="py-2.5 px-4 text-right">P (Putri)</th>
+                <th className="py-2.5 px-4 text-right">Mampu</th>
+                <th className="py-2.5 px-4 text-right">Yatim</th>
+                <th className="py-2.5 px-4 text-right">Lainnya</th>
+                <th className="py-2.5 px-4 text-right text-slate-800 font-bold">Total Siswa</th>
+                <th className="py-2.5 px-4 text-center">Rasio Mampu</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 font-medium">
+            <tbody className="divide-y divide-slate-100">
               {filteredClassRecap.map((row, idx) => {
                 const ratio = row.total > 0 ? Math.round((row.mampu / row.total) * 100) : 0;
                 return (
-                  <tr key={`${row.unit}-${row.grade}`} className="hover:bg-slate-50/70 transition">
-                    <td className="py-3 px-4 text-center text-slate-400 font-bold">{idx + 1}</td>
-                    <td className="py-3 px-4 font-bold text-slate-800">
-                      <span className={`inline-block px-2 py-0.5 rounded text-[11px] font-semibold ${
-                        row.unit === 'SMP IT' ? 'bg-emerald-50 text-emerald-800' : 'bg-blue-50 text-blue-800'
+                  <tr key={`${row.unit}-${row.grade}`} className="hover:bg-slate-50/60 transition-colors">
+                    <td className="py-2.5 px-4 text-center text-slate-400 font-medium">{idx + 1}</td>
+                    <td className="py-2.5 px-4">
+                      <span className={`inline-block px-2 py-0.5 rounded text-[11px] font-semibold border ${
+                        row.unit === 'SMP IT'
+                          ? 'bg-emerald-50/80 text-emerald-800 border-emerald-200/60'
+                          : 'bg-blue-50/80 text-blue-800 border-blue-200/60'
                       }`}>
                         {row.unit}
                       </span>
                     </td>
-                    <td className="py-3 px-4 text-center font-black text-slate-800">
+                    <td className="py-2.5 px-4 text-center font-semibold text-slate-800">
                       Kelas {row.grade}
                     </td>
-                    <td className="py-3 px-4 text-right font-bold text-sky-700 bg-sky-50/30">
-                      {row.lakiLaki} L
+                    <td className="py-2.5 px-4 text-right font-medium text-slate-700 tabular-nums">
+                      {row.lakiLaki}
                     </td>
-                    <td className="py-3 px-4 text-right font-bold text-rose-700 bg-rose-50/30">
-                      {row.perempuan} P
+                    <td className="py-2.5 px-4 text-right font-medium text-slate-700 tabular-nums">
+                      {row.perempuan}
                     </td>
-                    <td className="py-3 px-4 text-right font-bold text-emerald-700 bg-emerald-50/30">
-                      {row.mampu} Siswa
+                    <td className="py-2.5 px-4 text-right font-medium text-slate-700 tabular-nums">
+                      {row.mampu}
                     </td>
-                    <td className="py-3 px-4 text-right font-bold text-purple-700 bg-purple-50/30">
-                      {row.yatim} Siswa
+                    <td className="py-2.5 px-4 text-right font-medium text-slate-700 tabular-nums">
+                      {row.yatim}
                     </td>
-                    <td className="py-3 px-4 text-right font-bold text-blue-700 bg-blue-50/30">
-                      {row.lainnya} Siswa
+                    <td className="py-2.5 px-4 text-right font-medium text-slate-700 tabular-nums">
+                      {row.lainnya}
                     </td>
-                    <td className="py-3 px-4 text-right font-black text-slate-900 bg-slate-50">
-                      {row.total} Siswa
+                    <td className="py-2.5 px-4 text-right font-bold text-slate-900 tabular-nums">
+                      {row.total}
                     </td>
-                    <td className="py-3 px-4 text-center">
-                      <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700">
+                    <td className="py-2.5 px-4 text-center">
+                      <span className="inline-block px-2 py-0.5 rounded text-[11px] font-medium bg-slate-100 text-slate-600">
                         {ratio}%
                       </span>
                     </td>
@@ -831,17 +811,17 @@ export const DashboardPage: React.FC = () => {
             <tfoot>
               {/* Subtotal SMP IT */}
               {(classRecapUnitFilter === 'ALL' || classRecapUnitFilter === 'SMP IT') && (
-                <tr className="bg-emerald-50/80 font-bold text-emerald-950 border-t border-emerald-200">
-                  <td className="py-2.5 px-4 text-center" colSpan={3}>
-                    SUBTOTAL SMP IT (Kelas VII - IX)
+                <tr className="bg-slate-50/90 font-semibold text-slate-700 border-t border-slate-200">
+                  <td className="py-2.5 px-4 text-left font-bold pl-6 text-slate-800" colSpan={3}>
+                    Subtotal SMP IT (Kelas VII - IX)
                   </td>
-                  <td className="py-2.5 px-4 text-right text-sky-800 font-black">{smpSubtotal.lakiLaki} L</td>
-                  <td className="py-2.5 px-4 text-right text-rose-800 font-black">{smpSubtotal.perempuan} P</td>
-                  <td className="py-2.5 px-4 text-right text-emerald-800 font-black">{smpSubtotal.mampu} Siswa</td>
-                  <td className="py-2.5 px-4 text-right text-purple-800 font-black">{smpSubtotal.yatim} Siswa</td>
-                  <td className="py-2.5 px-4 text-right text-blue-800 font-black">{smpSubtotal.lainnya} Siswa</td>
-                  <td className="py-2.5 px-4 text-right font-black text-emerald-950">{smpSubtotal.total} Siswa</td>
-                  <td className="py-2.5 px-4 text-center">
+                  <td className="py-2.5 px-4 text-right font-semibold text-slate-800 tabular-nums">{smpSubtotal.lakiLaki}</td>
+                  <td className="py-2.5 px-4 text-right font-semibold text-slate-800 tabular-nums">{smpSubtotal.perempuan}</td>
+                  <td className="py-2.5 px-4 text-right font-semibold text-slate-800 tabular-nums">{smpSubtotal.mampu}</td>
+                  <td className="py-2.5 px-4 text-right font-semibold text-slate-800 tabular-nums">{smpSubtotal.yatim}</td>
+                  <td className="py-2.5 px-4 text-right font-semibold text-slate-800 tabular-nums">{smpSubtotal.lainnya}</td>
+                  <td className="py-2.5 px-4 text-right font-bold text-slate-900 tabular-nums">{smpSubtotal.total}</td>
+                  <td className="py-2.5 px-4 text-center text-slate-600 font-medium">
                     {smpSubtotal.total > 0 ? ((smpSubtotal.mampu / smpSubtotal.total) * 100).toFixed(1) : 0}%
                   </td>
                 </tr>
@@ -849,17 +829,17 @@ export const DashboardPage: React.FC = () => {
 
               {/* Subtotal SMA IT */}
               {(classRecapUnitFilter === 'ALL' || classRecapUnitFilter === 'SMA IT') && (
-                <tr className="bg-blue-50/80 font-bold text-blue-950 border-t border-blue-200">
-                  <td className="py-2.5 px-4 text-center" colSpan={3}>
-                    SUBTOTAL SMA IT (Kelas X - XII)
+                <tr className="bg-slate-50/90 font-semibold text-slate-700 border-t border-slate-200">
+                  <td className="py-2.5 px-4 text-left font-bold pl-6 text-slate-800" colSpan={3}>
+                    Subtotal SMA IT (Kelas X - XII)
                   </td>
-                  <td className="py-2.5 px-4 text-right text-sky-800 font-black">{smaSubtotal.lakiLaki} L</td>
-                  <td className="py-2.5 px-4 text-right text-rose-800 font-black">{smaSubtotal.perempuan} P</td>
-                  <td className="py-2.5 px-4 text-right text-emerald-800 font-black">{smaSubtotal.mampu} Siswa</td>
-                  <td className="py-2.5 px-4 text-right text-purple-800 font-black">{smaSubtotal.yatim} Siswa</td>
-                  <td className="py-2.5 px-4 text-right text-blue-800 font-black">{smaSubtotal.lainnya} Siswa</td>
-                  <td className="py-2.5 px-4 text-right font-black text-blue-950">{smaSubtotal.total} Siswa</td>
-                  <td className="py-2.5 px-4 text-center">
+                  <td className="py-2.5 px-4 text-right font-semibold text-slate-800 tabular-nums">{smaSubtotal.lakiLaki}</td>
+                  <td className="py-2.5 px-4 text-right font-semibold text-slate-800 tabular-nums">{smaSubtotal.perempuan}</td>
+                  <td className="py-2.5 px-4 text-right font-semibold text-slate-800 tabular-nums">{smaSubtotal.mampu}</td>
+                  <td className="py-2.5 px-4 text-right font-semibold text-slate-800 tabular-nums">{smaSubtotal.yatim}</td>
+                  <td className="py-2.5 px-4 text-right font-semibold text-slate-800 tabular-nums">{smaSubtotal.lainnya}</td>
+                  <td className="py-2.5 px-4 text-right font-bold text-slate-900 tabular-nums">{smaSubtotal.total}</td>
+                  <td className="py-2.5 px-4 text-center text-slate-600 font-medium">
                     {smaSubtotal.total > 0 ? ((smaSubtotal.mampu / smaSubtotal.total) * 100).toFixed(1) : 0}%
                   </td>
                 </tr>
@@ -867,17 +847,17 @@ export const DashboardPage: React.FC = () => {
 
               {/* Grand Total */}
               {classRecapUnitFilter === 'ALL' && (
-                <tr className="bg-slate-900 font-black text-white border-t-2 border-slate-700">
-                  <td className="py-3 px-4 text-center" colSpan={3}>
+                <tr className="bg-slate-900 font-bold text-white border-t-2 border-slate-800">
+                  <td className="py-3 px-4 text-left font-extrabold pl-6" colSpan={3}>
                     TOTAL KESELURUHAN (SMP IT & SMA IT)
                   </td>
-                  <td className="py-3 px-4 text-right text-sky-300 font-black">{totalLaki} L</td>
-                  <td className="py-3 px-4 text-right text-rose-300 font-black">{totalPerempuan} P</td>
-                  <td className="py-3 px-4 text-right text-emerald-300 font-black">{totalMampu} Siswa</td>
-                  <td className="py-3 px-4 text-right text-purple-300 font-black">{totalYatim} Siswa</td>
-                  <td className="py-3 px-4 text-right text-blue-300 font-black">{totalLainnya} Siswa</td>
-                  <td className="py-3 px-4 text-right text-gold-400 font-black">{activeStudentsCount} Siswa</td>
-                  <td className="py-3 px-4 text-center text-emerald-300">
+                  <td className="py-3 px-4 text-right font-bold tabular-nums text-slate-200">{totalLaki}</td>
+                  <td className="py-3 px-4 text-right font-bold tabular-nums text-slate-200">{totalPerempuan}</td>
+                  <td className="py-3 px-4 text-right font-bold tabular-nums text-emerald-300">{totalMampu}</td>
+                  <td className="py-3 px-4 text-right font-bold tabular-nums text-slate-200">{totalYatim}</td>
+                  <td className="py-3 px-4 text-right font-bold tabular-nums text-slate-200">{totalLainnya}</td>
+                  <td className="py-3 px-4 text-right font-black tabular-nums text-gold-400">{activeStudentsCount}</td>
+                  <td className="py-3 px-4 text-center text-emerald-300 font-bold">
                     {activeStudentsCount > 0 ? ((totalMampu / activeStudentsCount) * 100).toFixed(1) : 0}%
                   </td>
                 </tr>
