@@ -185,10 +185,14 @@ export const ImportPaymentsPage: React.FC = () => {
           }
         }
       } else {
-        // LIST FORMAT (Rows of: Nama, Tagihan/Bulan, Tanggal, Nominal)
+        // LIST FORMAT (Rows of: Nama, Tagihan/Bulan/Rincian, Tanggal, Nominal)
         const dateIdx = headerUpper.findIndex((h: string) => h.includes('TANGGAL') || h.includes('DATE'));
-        const nominalIdx = headerUpper.findIndex((h: string) => h.includes('NOMINAL') || h.includes('JUMLAH') || h.includes('BAYAR'));
-        const tagihanIdx = headerUpper.findIndex((h: string) => h.includes('TAGIHAN') || h.includes('BULAN') || h.includes('ITEM'));
+        const nominalIdx = headerUpper.findIndex((h: string) => 
+          h === 'NOMINAL DIBAYAR' || h === 'NOMINAL BAYAR' || h === 'NOMINAL' || h.includes('JUMLAH') || h.includes('BAYAR')
+        );
+        const tagihanIdx = headerUpper.findIndex((h: string) => 
+          h.includes('TAGIHAN') || h.includes('BULAN') || h.includes('ITEM') || h.includes('RINCIAN 1') || h.includes('RINCIAN')
+        );
 
         for (let r = 1; r < rows.length; r++) {
           const row = rows[r];
