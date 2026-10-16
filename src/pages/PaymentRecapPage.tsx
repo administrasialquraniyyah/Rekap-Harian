@@ -10,6 +10,8 @@ import {
   CheckCircle2,
   Clock,
   AlertCircle,
+  AlertTriangle,
+  FileSpreadsheet,
   Edit3,
   X,
   Save,
@@ -65,6 +67,13 @@ export const PaymentRecapPage: React.FC = () => {
   const [unitFilter, setUnitFilter] = useState<'ALL' | 'SMP IT' | 'SMA IT'>('ALL');
   const [gradeFilter, setGradeFilter] = useState<string>('ALL');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
+  const [unpaidMonthFilter, setUnpaidMonthFilter] = useState<string>('ALL');
+
+  // Export Unpaid SPP Modal State
+  const [showUnpaidExportModal, setShowUnpaidExportModal] = useState<boolean>(false);
+  const [modalMonthTarget, setModalMonthTarget] = useState<string>('Agustus');
+  const [modalUnitTarget, setModalUnitTarget] = useState<'ALL' | 'SMP IT' | 'SMA IT'>('ALL');
+  const [modalGradeTarget, setModalGradeTarget] = useState<string>('ALL');
 
   // Modal In-Cell Edit for SPP Month
   const [editingSpp, setEditingSpp] = useState<{
@@ -287,8 +296,50 @@ export const PaymentRecapPage: React.FC = () => {
     const matchesGrade = gradeFilter === 'ALL' || row.grade === gradeFilter;
     const matchesStatus = statusFilter === 'ALL' || row.administrative_status === statusFilter;
 
-    return matchesSearch && matchesUnit && matchesGrade && matchesStatus;
+    // Filter by unpaid SPP month
+    let matchesUnpaidMonth = true;
+    if (unpaidMonthFilter !== 'ALL') {
+      const cell = row.sppMonths[unpaidMonthFilter];
+      matchesUnpaidMonth = cell?.status === 'Belum Dibayar' || cell?.status === 'Belum Lunas';
+    }
+
+    return matchesSearch && matchesUnit && matchesGrade && matchesStatus && matchesUnpaidMonth;
   });
+
+  const handleExportUnpaid = (
+    targetMonth: string,
+    targetUnit: string = 'ALL',
+    targetGrade: string = 'ALL'
+  ) => {
+    const list = recapData.filter((r) => {
+      const cell = r.sppMonths[targetMonth];
+      const isUnpaid = cell?.status === 'Belum Dibayar' || cell?.status === 'Belum Lunas';
+      const mUnit = targetUnit === 'ALL' || r.unit === targetUnit;
+      const mGrade = targetGrade === 'ALL' || r.grade === targetGrade;
+      return isUnpaid && mUnit && mGrade;
+    });
+
+    if (list.length === 0) {
+      showToast(`Tidak ditemukan siswa yang belum bayar SPP ${targetMonth} untuk filter ini`, 'info');
+      return;
+    }
+
+    const payload = list.map((r) => ({
+      name: r.student_name,
+      unit: r.unit,
+      grade: r.grade,
+      phone: r.phone,
+      spp_nominal: r.spp_nominal,
+      month: targetMonth,
+    }));
+
+    excelService.exportUnpaidSppExcel(
+      payload,
+      targetMonth,
+      selectedAcademicYear?.name || '2026/2027'
+    );
+    showToast(`Berhasil mendownload Excel ${payload.length} siswa belum bayar SPP ${targetMonth}`, 'success');
+  };
 
   const handleExport = () => {
     if (filteredRows.length === 0) {
@@ -374,17 +425,26 @@ export const PaymentRecapPage: React.FC = () => {
           </button>
 
           <button
+            onClick={() => setShowUnpaidExportModal(true)}
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold transition shadow-xs"
+            title="Export Excel Siswa yang belum bayar SPP per bulan tertentu"
+          >
+            <AlertCircle className="w-4 h-4 text-amber-200" />
+            <span>Export Belum Bayar SPP</span>
+          </button>
+
+          <button
             onClick={handleExport}
             className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-800 hover:bg-emerald-700 text-white text-xs font-bold transition shadow-sm"
           >
             <Download className="w-4 h-4 text-gold-400" />
-            <span>Export Excel</span>
+            <span>Export Matriks Lengkap</span>
           </button>
         </div>
       </div>
 
       {/* Filter Bar */}
-      <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
         <div className="relative">
           <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
           <input
@@ -438,7 +498,65 @@ export const PaymentRecapPage: React.FC = () => {
             <option value="Rekomendasi">Rekomendasi</option>
           </select>
         </div>
+
+        <div>
+          <select
+            value={unpaidMonthFilter}
+            onChange={(e) => setUnpaidMonthFilter(e.target.value)}
+            className={`w-full py-2 px-3 text-xs font-bold rounded-xl border focus:outline-none focus:ring-2 focus:ring-amber-500 ${
+              unpaidMonthFilter !== 'ALL'
+                ? 'bg-amber-50 border-amber-300 text-amber-900 ring-1 ring-amber-300'
+                : 'border-slate-200 bg-white text-slate-700'
+            }`}
+          >
+            <option value="ALL">Semua Status SPP</option>
+            {SPP_MONTHS.map((m) => (
+              <option key={m} value={m}>
+                ⚠️ Belum Bayar SPP {m}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
+
+      {/* Indicator Banner when filtering by unpaid month */}
+      {unpaidMonthFilter !== 'ALL' && (
+        <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-300 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs animate-fade-in">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-xs">
+              <AlertCircle className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-black uppercase tracking-wider text-amber-800 bg-amber-200/70 px-2 py-0.5 rounded-md">
+                  Filter Aktif
+                </span>
+                <p className="text-sm font-bold text-amber-950">
+                  Daftar Siswa Belum Bayar SPP Bulan {unpaidMonthFilter}
+                </p>
+              </div>
+              <p className="text-xs text-amber-800 mt-0.5">
+                Ditemukan <strong className="text-amber-950 underline">{filteredRows.length} siswa</strong> belum bayar. Data ini siap diexport ke Excel dengan nama, kelas, jenjang, dan nomor telepon orang tua.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <button
+              onClick={() => handleExportUnpaid(unpaidMonthFilter, unitFilter, gradeFilter)}
+              className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-amber-700 hover:bg-amber-800 text-white text-xs font-bold rounded-xl shadow-xs transition"
+            >
+              <Download className="w-4 h-4 text-amber-200" />
+              <span>Download Excel ({filteredRows.length} Siswa)</span>
+            </button>
+            <button
+              onClick={() => setUnpaidMonthFilter('ALL')}
+              className="px-3 py-2 text-xs font-semibold text-amber-800 hover:bg-amber-200/50 rounded-xl transition"
+            >
+              Reset Filter
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Legend & Hint */}
       <div className="flex flex-wrap items-center justify-between gap-4 px-2 text-[11px] font-semibold text-slate-500">
@@ -776,6 +894,144 @@ export const PaymentRecapPage: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* MODAL EXPORT SISWA BELUM BAYAR SPP */}
+      {showUnpaidExportModal && (() => {
+        const modalMatchingCount = recapData.filter((r) => {
+          const cell = r.sppMonths[modalMonthTarget];
+          const isUnpaid = cell?.status === 'Belum Dibayar' || cell?.status === 'Belum Lunas';
+          const mUnit = modalUnitTarget === 'ALL' || r.unit === modalUnitTarget;
+          const mGrade = modalGradeTarget === 'ALL' || r.grade === modalGradeTarget;
+          return isUnpaid && mUnit && mGrade;
+        }).length;
+
+        return (
+          <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in">
+            <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200">
+              <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center font-bold">
+                    <FileSpreadsheet className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h4 className="text-base font-bold text-slate-800">
+                      Export Siswa Belum Bayar SPP
+                    </h4>
+                    <p className="text-xs text-slate-500">
+                      Download file Excel daftar siswa yang belum lunas per bulan
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowUnpaidExportModal(false)}
+                  className="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-100 transition"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="py-4 space-y-4">
+                {/* Target Bulan */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                    Pilih Bulan SPP Yang Ditagihkan *
+                  </label>
+                  <select
+                    value={modalMonthTarget}
+                    onChange={(e) => setModalMonthTarget(e.target.value)}
+                    className="w-full text-sm font-bold px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white"
+                  >
+                    {SPP_MONTHS.map((m) => (
+                      <option key={m} value={m}>
+                        Bulan SPP: {m}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Filter Jenjang & Kelas */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                      Jenjang
+                    </label>
+                    <select
+                      value={modalUnitTarget}
+                      onChange={(e) => setModalUnitTarget(e.target.value as any)}
+                      className="w-full text-xs font-semibold px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white"
+                    >
+                      <option value="ALL">Semua Jenjang</option>
+                      <option value="SMP IT">SMP IT</option>
+                      <option value="SMA IT">SMA IT</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                      Kelas
+                    </label>
+                    <select
+                      value={modalGradeTarget}
+                      onChange={(e) => setModalGradeTarget(e.target.value)}
+                      className="w-full text-xs font-semibold px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white"
+                    >
+                      <option value="ALL">Semua Kelas</option>
+                      <option value="VII">VII</option>
+                      <option value="VIII">VIII</option>
+                      <option value="IX">IX</option>
+                      <option value="X">X</option>
+                      <option value="XI">XI</option>
+                      <option value="XII">XII</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Real-time Match Preview */}
+                <div className="p-3.5 rounded-xl bg-amber-50/80 border border-amber-200 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-amber-900">
+                      Siswa Belum Bayar SPP {modalMonthTarget}:
+                    </span>
+                    <span className="px-2.5 py-0.5 rounded-full bg-amber-200 text-amber-900 font-black text-xs">
+                      {modalMatchingCount} Siswa
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-amber-800 leading-relaxed">
+                    📋 Kolom yang disertakan dalam Excel: <strong>NO, NAMA SISWA, JENJANG, KELAS, NOMOR TELPON (WhatsApp), BULAN, TARIF SPP, STATUS</strong>.
+                  </p>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowUnpaidExportModal(false)}
+                  className="px-4 py-2.5 text-slate-600 hover:bg-slate-100 text-xs font-semibold rounded-xl transition"
+                >
+                  Batal
+                </button>
+                <button
+                  type="button"
+                  disabled={modalMatchingCount === 0}
+                  onClick={() => {
+                    handleExportUnpaid(modalMonthTarget, modalUnitTarget, modalGradeTarget);
+                    setShowUnpaidExportModal(false);
+                  }}
+                  className={`flex items-center gap-2 px-5 py-2.5 text-white font-bold text-xs rounded-xl shadow-xs transition ${
+                    modalMatchingCount > 0
+                      ? 'bg-amber-600 hover:bg-amber-700 cursor-pointer'
+                      : 'bg-slate-300 cursor-not-allowed'
+                  }`}
+                >
+                  <Download className="w-4 h-4" />
+                  <span>Download File Excel</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 };

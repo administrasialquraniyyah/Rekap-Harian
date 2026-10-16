@@ -545,6 +545,47 @@ export const excelService = {
     XLSX.writeFile(workbook, `${title}_${new Date().toISOString().split('T')[0]}.xlsx`);
   },
 
+  // Export List of Unpaid Students for a Specific SPP Month
+  exportUnpaidSppExcel(
+    students: {
+      name: string;
+      unit: string;
+      grade: string;
+      phone: string | null;
+      spp_nominal?: number;
+      month: string;
+    }[],
+    month: string,
+    academicYearName: string
+  ) {
+    const rows = students.map((s, idx) => ({
+      'NO': idx + 1,
+      'NAMA SISWA': s.name,
+      'JENJANG': s.unit,
+      'KELAS': s.grade,
+      'NOMOR TELPON': s.phone || '-',
+      'BULAN': `SPP ${month}`,
+      'TARIF SPP': s.spp_nominal || 0,
+      'STATUS': 'Belum Bayar'
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(rows);
+    worksheet['!cols'] = [
+      { wch: 6 },
+      { wch: 32 },
+      { wch: 12 },
+      { wch: 10 },
+      { wch: 18 },
+      { wch: 15 },
+      { wch: 15 },
+      { wch: 14 }
+    ];
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, `Belum Bayar SPP ${month}`);
+    XLSX.writeFile(workbook, `Daftar_Belum_Bayar_SPP_${month}_${academicYearName.replace('/', '-')}.xlsx`);
+  },
+
   // Download official Template Excel for initial database upload
   downloadTemplateAcuanExcel() {
     const tagihanData = [
