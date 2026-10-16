@@ -493,5 +493,59 @@ export const paymentService = {
       console.error('Error in paymentService.updateNonSppCell for Supabase:', err);
       throw err;
     }
+  },
+
+  async batchApplyPayments(
+    academicYearId: string,
+    items: {
+      studentId: string;
+      itemType: 'SPP' | 'Non-SPP';
+      categoryOrMonth: string;
+      paymentDate: string;
+      amount: number;
+      paymentMethod?: string;
+    }[],
+    onProgress?: (processed: number, total: number) => void
+  ): Promise<{ successCount: number; failCount: number }> {
+    let successCount = 0;
+    let failCount = 0;
+    const total = items.length;
+
+    const batchSize = 5;
+    for (let i = 0; i < total; i += batchSize) {
+      const chunk = items.slice(i, i + batchSize);
+      await Promise.all(
+        chunk.map(async (item) => {
+          try {
+            if (item.itemType === 'SPP') {
+              await this.updateSppCell(item.studentId, academicYearId, item.categoryOrMonth, {
+                status: 'Lunas',
+                paymentDate: item.paymentDate,
+                amount: item.amount,
+                paymentMethod: item.paymentMethod || 'Tunai',
+              });
+            } else {
+              await this.updateNonSppCell(
+                item.studentId,
+                academicYearId,
+                item.categoryOrMonth,
+                item.amount,
+                item.paymentDate
+              );
+            }
+            successCount++;
+          } catch (e) {
+            console.error('Failed to apply payment item:', item, e);
+            failCount++;
+          }
+        })
+      );
+      if (onProgress) {
+        onProgress(Math.min(i + batchSize, total), total);
+      }
+    }
+
+    return { successCount, failCount };
   }
 };
+

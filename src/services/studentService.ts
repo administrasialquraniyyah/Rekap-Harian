@@ -11,66 +11,70 @@ export interface StudentFilter {
   search?: string;
 }
 
+function getLocalStudentsWithEnrollment(filters: StudentFilter = {}): Student[] {
+  const allStudents = localStore.getStudents();
+  const allEnrollments = localStore.getEnrollments();
+  const allYears = localStore.getAcademicYears();
+
+  let mapped: Student[] = allStudents.map((s) => {
+    let current_enrollment: StudentEnrollment | undefined;
+    const enrollments = allEnrollments.filter((e) => e.student_id === s.id);
+
+    if (filters.academicYearId) {
+      current_enrollment = enrollments.find(
+        (e) => e.academic_year_id === filters.academicYearId
+      );
+    } else {
+      current_enrollment = enrollments.find(
+        (e) => allYears.find((y) => y.id === e.academic_year_id)?.status === 'active'
+      ) || enrollments[0];
+    }
+
+    return {
+      ...s,
+      current_enrollment,
+    };
+  });
+
+  if (filters.studentStatus && filters.studentStatus !== 'ALL') {
+    mapped = mapped.filter((s) => s.student_status === filters.studentStatus);
+  }
+
+  if (filters.search) {
+    const q = filters.search.toLowerCase();
+    mapped = mapped.filter(
+      (s) =>
+        s.full_name.toLowerCase().includes(q) ||
+        (s.nis && s.nis.toLowerCase().includes(q)) ||
+        (s.phone && s.phone.includes(q))
+    );
+  }
+
+  if (filters.academicYearId) {
+    mapped = mapped.filter((s) => s.current_enrollment !== undefined);
+  }
+
+  if (filters.unit && filters.unit !== 'ALL') {
+    mapped = mapped.filter((s) => s.current_enrollment?.unit === filters.unit);
+  }
+
+  if (filters.grade && filters.grade !== 'ALL') {
+    mapped = mapped.filter((s) => s.current_enrollment?.grade === filters.grade);
+  }
+
+  if (filters.administrativeStatus && filters.administrativeStatus !== 'ALL') {
+    mapped = mapped.filter(
+      (s) => s.current_enrollment?.administrative_status === filters.administrativeStatus
+    );
+  }
+
+  return mapped;
+}
+
 export const studentService = {
   async getAllWithEnrollment(filters: StudentFilter = {}): Promise<Student[]> {
     if (!isSupabaseConfigured) {
-      const allStudents = localStore.getStudents();
-      const allEnrollments = localStore.getEnrollments();
-      const allYears = localStore.getAcademicYears();
-
-      let mapped: Student[] = allStudents.map((s) => {
-        let current_enrollment: StudentEnrollment | undefined;
-        const enrollments = allEnrollments.filter((e) => e.student_id === s.id);
-
-        if (filters.academicYearId) {
-          current_enrollment = enrollments.find(
-            (e) => e.academic_year_id === filters.academicYearId
-          );
-        } else {
-          current_enrollment = enrollments.find(
-            (e) => allYears.find((y) => y.id === e.academic_year_id)?.status === 'active'
-          ) || enrollments[0];
-        }
-
-        return {
-          ...s,
-          current_enrollment,
-        };
-      });
-
-      if (filters.studentStatus && filters.studentStatus !== 'ALL') {
-        mapped = mapped.filter((s) => s.student_status === filters.studentStatus);
-      }
-
-      if (filters.search) {
-        const q = filters.search.toLowerCase();
-        mapped = mapped.filter(
-          (s) =>
-            s.full_name.toLowerCase().includes(q) ||
-            (s.nis && s.nis.toLowerCase().includes(q)) ||
-            (s.phone && s.phone.includes(q))
-        );
-      }
-
-      if (filters.academicYearId) {
-        mapped = mapped.filter((s) => s.current_enrollment !== undefined);
-      }
-
-      if (filters.unit && filters.unit !== 'ALL') {
-        mapped = mapped.filter((s) => s.current_enrollment?.unit === filters.unit);
-      }
-
-      if (filters.grade && filters.grade !== 'ALL') {
-        mapped = mapped.filter((s) => s.current_enrollment?.grade === filters.grade);
-      }
-
-      if (filters.administrativeStatus && filters.administrativeStatus !== 'ALL') {
-        mapped = mapped.filter(
-          (s) => s.current_enrollment?.administrative_status === filters.administrativeStatus
-        );
-      }
-
-      return mapped;
+      return getLocalStudentsWithEnrollment(filters);
     }
 
     try {
@@ -150,7 +154,7 @@ export const studentService = {
       return students;
     } catch (err) {
       console.warn('Supabase fetch failed, using local store:', err);
-      return this.getAllWithEnrollment({ ...filters });
+      return getLocalStudentsWithEnrollment(filters);
     }
   },
 

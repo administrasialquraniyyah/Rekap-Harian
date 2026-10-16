@@ -9,10 +9,12 @@ import {
   ArrowRight,
   Database,
   Calendar,
-  Layers
+  Layers,
+  Check
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
-import { localStore } from '../services/dataStore';
+import { studentService } from '../services/studentService';
+import { paymentService } from '../services/paymentService';
 import { SPP_MONTHS } from '../services/billingService';
 import * as XLSX from 'xlsx';
 
@@ -26,17 +28,47 @@ interface MatchedPaymentItem {
   amount: number;
 }
 
+export function parseCurrencyNumber(val: any, fallback: number = 0): number {
+  if (val === null || val === undefined || val === '') return fallback;
+  if (typeof val === 'number') return isNaN(val) ? fallback : val;
+  let s = String(val).trim().replace(/Rp/gi, '').replace(/\s+/g, '');
+  if (s.includes('.') && s.includes(',')) {
+    if (s.lastIndexOf(',') > s.lastIndexOf('.')) s = s.replace(/\./g, '').replace(',', '.');
+    else s = s.replace(/,/g, '');
+  } else if (s.includes('.')) {
+    const parts = s.split('.');
+    if (parts.length > 2 || (parts[1] && parts[1].length === 3)) s = s.replace(/\./g, '');
+  } else if (s.includes(',')) {
+    const parts = s.split(',');
+    if (parts.length > 2 || (parts[1] && parts[1].length === 3)) s = s.replace(/,/g, '');
+    else s = s.replace(',', '.');
+  }
+  s = s.replace(/[^\d.-]/g, '');
+  const parsed = parseFloat(s);
+  return isNaN(parsed) ? fallback : parsed;
+}
+
 export const ImportPaymentsPage: React.FC = () => {
   const { selectedAcademicYearId, selectedAcademicYear, showToast, triggerRefresh } = useApp();
 
   const [file, setFile] = useState<File | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isApplying, setIsApplying] = useState(false);
+  const [applyProgress, setApplyProgress] = useState<{ current: number; total: number } | null>(null);
   const [previewItems, setPreviewItems] = useState<MatchedPaymentItem[]>([]);
   const [importSummary, setImportSummary] = useState<{
     totalMatched: number;
     totalUnmatched: number;
     totalAmount: number;
   } | null>(null);
+
+  const normalizeName = (name: string) => {
+    return name
+      .toLowerCase()
+      .replace(/['’`.]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+  };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const uploadedFile = e.target.files?.[0];
@@ -49,7 +81,11 @@ export const ImportPaymentsPage: React.FC = () => {
     try {
       const buffer = await uploadedFile.arrayBuffer();
       const workbook = XLSX.read(buffer, { cellDates: true });
-      const students = localStore.getStudents();
+      
+      // Load current students from Supabase (or localStore)
+      const students = await studentService.getAllWithEnrollment({
+        academicYearId: selectedAcademicYearId || undefined,
+      });
 
       // Check if file has 'PEMBAYARAN' sheet (standard Excel template)
       const bayarSheet = workbook.Sheets['PEMBAYARAN'] || workbook.Sheets[workbook.SheetNames[0]];
@@ -90,11 +126,14 @@ export const ImportPaymentsPage: React.FC = () => {
           const rawName = row[nameColIdx];
           if (!rawName) continue;
           const nameStr = String(rawName).trim();
+          const cleanName = normalizeName(nameStr);
 
           // Match student
           const matchedStudent = students.find(
-            (s) => s.full_name.toLowerCase().trim() === nameStr.toLowerCase()
+            (s) => normalizeName(s.full_name) === cleanName
           );
+
+          const defaultSppNominal = matchedStudent?.current_enrollment?.unit === 'SMA IT' ? 1385000 : 1335000;
 
           // 1. Process SPP months
           for (const mItem of monthIndices) {
@@ -123,7 +162,7 @@ export const ImportPaymentsPage: React.FC = () => {
                   itemType: 'SPP',
                   categoryOrMonth: mItem.month,
                   paymentDate: dateStr,
-                  amount: 1335000,
+                  amount: defaultSppNominal,
                 });
               }
             }
@@ -131,7 +170,7 @@ export const ImportPaymentsPage: React.FC = () => {
 
           // 2. Process Non-SPP categories
           for (const cItem of catIndices) {
-            const cellVal = Number(row[cItem.idx] || 0);
+            const cellVal = parseCurrencyNumber(row[cItem.idx], 0);
             if (cellVal > 0) {
               matchedList.push({
                 studentName: nameStr,
@@ -156,12 +195,16 @@ export const ImportPaymentsPage: React.FC = () => {
           const rawName = row[nameColIdx];
           if (!rawName) continue;
           const nameStr = String(rawName).trim();
+          const cleanName = normalizeName(nameStr);
           const matchedStudent = students.find(
-            (s) => s.full_name.toLowerCase().trim() === nameStr.toLowerCase()
+            (s) => normalizeName(s.full_name) === cleanName
           );
 
           const tagihanStr = tagihanIdx !== -1 ? String(row[tagihanIdx] || 'SPP').trim() : 'SPP';
-          const nominalVal = nominalIdx !== -1 ? Number(row[nominalIdx] || 1335000) : 1335000;
+          const defaultNominal = matchedStudent?.current_enrollment?.unit === 'SMA IT' ? 1385000 : 1335000;
+          let nominalVal = nominalIdx !== -1 ? parseCurrencyNumber(row[nominalIdx], defaultNominal) : defaultNominal;
+          if (nominalVal <= 0) nominalVal = defaultNominal;
+
           let dateStr = new Date().toISOString().split('T')[0];
 
           if (dateIdx !== -1 && row[dateIdx]) {
@@ -195,7 +238,7 @@ export const ImportPaymentsPage: React.FC = () => {
 
       const matchedCount = matchedList.filter((m) => m.matched).length;
       const unmatchedCount = matchedList.filter((m) => !m.matched).length;
-      const sumAmount = matchedList.reduce((sum, m) => sum + m.amount, 0);
+      const sumAmount = matchedList.reduce((sum, m) => sum + (isNaN(m.amount) ? 0 : m.amount), 0);
 
       setImportSummary({
         totalMatched: matchedCount,
@@ -213,46 +256,58 @@ export const ImportPaymentsPage: React.FC = () => {
     }
   };
 
-  const handleApplyToRecap = () => {
+  const handleApplyToRecap = async () => {
     if (previewItems.length === 0 || !selectedAcademicYearId) {
       showToast('Tidak ada data yang dapat diimpor', 'error');
       return;
     }
 
-    let appliedCount = 0;
-
-    for (const item of previewItems) {
-      if (!item.matched || !item.studentId) continue;
-
-      if (item.itemType === 'SPP') {
-        localStore.updateSppCell(item.studentId, selectedAcademicYearId, item.categoryOrMonth, {
-          status: 'Lunas',
-          paymentDate: item.paymentDate,
-          amount: item.amount,
-        });
-        appliedCount++;
-      } else {
-        localStore.updateNonSppCell(
-          item.studentId,
-          selectedAcademicYearId,
-          item.categoryOrMonth,
-          item.amount,
-          item.paymentDate
-        );
-        appliedCount++;
-      }
+    const validItems = previewItems.filter((item) => item.matched && item.studentId);
+    if (validItems.length === 0) {
+      showToast('Tidak ada siswa yang cocok untuk disimpan', 'error');
+      return;
     }
 
-    showToast(`Sukses menerapkan ${appliedCount} pembayaran ke rekapitulasi!`, 'success');
-    triggerRefresh();
-    setPreviewItems([]);
-    setFile(null);
+    setIsApplying(true);
+    setApplyProgress({ current: 0, total: validItems.length });
+
+    try {
+      const itemsToApply = validItems.map((item) => ({
+        studentId: item.studentId!,
+        itemType: item.itemType,
+        categoryOrMonth: item.categoryOrMonth,
+        paymentDate: item.paymentDate,
+        amount: item.amount,
+        paymentMethod: 'Tunai',
+      }));
+
+      const result = await paymentService.batchApplyPayments(
+        selectedAcademicYearId,
+        itemsToApply,
+        (current, total) => {
+          setApplyProgress({ current, total });
+        }
+      );
+
+      showToast(`Sukses menerapkan ${result.successCount} transaksi pembayaran ke database online!`, 'success');
+      triggerRefresh();
+      setPreviewItems([]);
+      setFile(null);
+      setImportSummary(null);
+    } catch (err: any) {
+      console.error('Error applying payments:', err);
+      showToast('Terjadi kesalahan saat menerapkan pembayaran: ' + err.message, 'error');
+    } finally {
+      setIsApplying(false);
+      setApplyProgress(null);
+    }
   };
 
   const downloadSampleTemplate = () => {
     const sampleRows = [
       { 'Nama Siswa': 'Aditya Ramadhan', 'Bulan / Tagihan': 'September', 'Tanggal Bayar': '2026-09-10', 'Nominal': 1335000 },
       { 'Nama Siswa': 'Aditya Ramadhan', 'Bulan / Tagihan': 'Oktober', 'Tanggal Bayar': '2026-10-08', 'Nominal': 1335000 },
+      { 'Nama Siswa': 'Umar Faqih Al Ghozy', 'Bulan / Tagihan': 'Oktober', 'Tanggal Bayar': '2026-10-15', 'Nominal': 1385000 },
       { 'Nama Siswa': 'Ahmad Omar Rafly Lubis', 'Bulan / Tagihan': 'Buku Paket', 'Tanggal Bayar': '2026-10-15', 'Nominal': 450000 },
     ];
     const ws = XLSX.utils.json_to_sheet(sampleRows);
@@ -273,7 +328,7 @@ export const ImportPaymentsPage: React.FC = () => {
             Import Pembayaran Siswa Dari Excel
           </h3>
           <p className="text-xs text-slate-500 mt-0.5">
-            Unggah file Excel berisi nama siswa, tanggal bayar, bulan SPP, atau biaya buku/lainnya. Sistem akan langsung memperbarui tabel Rekap Pembayaran secara otomatis.
+            Unggah file Excel berisi nama siswa, tanggal bayar, bulan SPP, atau biaya buku/lainnya. Sistem akan langsung memperbarui database dan tabel Rekap Pembayaran secara otomatis.
           </p>
         </div>
 
@@ -294,11 +349,12 @@ export const ImportPaymentsPage: React.FC = () => {
             id="paymentExcelUpload"
             accept=".xlsx, .xls"
             onChange={handleFileUpload}
+            disabled={isApplying || isProcessing}
             className="hidden"
           />
           <label
             htmlFor="paymentExcelUpload"
-            className="cursor-pointer flex flex-col items-center justify-center gap-2"
+            className={`flex flex-col items-center justify-center gap-2 ${isApplying || isProcessing ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
           >
             <div className="w-12 h-12 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center shadow-xs">
               <Upload className="w-6 h-6" />
@@ -307,7 +363,7 @@ export const ImportPaymentsPage: React.FC = () => {
               {file ? file.name : 'Pilih atau Drag File Excel Pembayaran di Sini'}
             </p>
             <p className="text-xs text-slate-500 max-w-md">
-              Bisa berupa file matriks acuan <code>Administrasi_SMP_SMA_2026-2027.xlsx</code> (sheet PEMBAYARAN) atau file Excel daftar setoran baru.
+              Bisa berupa file matriks acuan <code>Administrasi_SMP_SMA_2026-2027.xlsx</code> (sheet PEMBAYARAN) atau file Excel daftar transaksi baru.
             </p>
           </label>
         </div>
@@ -315,12 +371,32 @@ export const ImportPaymentsPage: React.FC = () => {
         {isProcessing && (
           <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 text-center text-xs text-slate-600 flex items-center justify-center gap-2">
             <RefreshCw className="w-4 h-4 animate-spin text-emerald-700" />
-            <span>Mencocokkan nama siswa dan mengurai tanggal transaksi...</span>
+            <span>Mencocokkan nama siswa dengan database online dan mengurai tanggal transaksi...</span>
+          </div>
+        )}
+
+        {isApplying && applyProgress && (
+          <div className="p-5 bg-emerald-50 rounded-2xl border border-emerald-200 space-y-3">
+            <div className="flex items-center justify-between text-xs font-bold text-emerald-900">
+              <span className="flex items-center gap-2">
+                <RefreshCw className="w-4 h-4 animate-spin text-emerald-700" />
+                Menerapkan pembayaran ke database online Supabase...
+              </span>
+              <span>
+                {applyProgress.current} / {applyProgress.total} ({Math.round((applyProgress.current / applyProgress.total) * 100)}%)
+              </span>
+            </div>
+            <div className="w-full bg-emerald-200/60 rounded-full h-2.5 overflow-hidden">
+              <div
+                className="bg-emerald-600 h-2.5 rounded-full transition-all duration-300"
+                style={{ width: `${(applyProgress.current / applyProgress.total) * 100}%` }}
+              ></div>
+            </div>
           </div>
         )}
 
         {/* Summary Card */}
-        {importSummary && (
+        {importSummary && !isApplying && (
           <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="grid grid-cols-3 gap-4 text-xs">
               <div>
@@ -334,14 +410,15 @@ export const ImportPaymentsPage: React.FC = () => {
               <div>
                 <p className="text-slate-500">Total Nilai Transaksi</p>
                 <p className="font-black text-slate-800 text-base">
-                  Rp{importSummary.totalAmount.toLocaleString('id-ID')}
+                  Rp{Number(importSummary.totalAmount || 0).toLocaleString('id-ID')}
                 </p>
               </div>
             </div>
 
             <button
               onClick={handleApplyToRecap}
-              className="flex items-center gap-2 px-6 py-2.5 bg-emerald-800 hover:bg-emerald-700 text-white font-black text-xs rounded-xl shadow-md transition"
+              disabled={isApplying || importSummary.totalMatched === 0}
+              className="flex items-center gap-2 px-6 py-2.5 bg-emerald-800 hover:bg-emerald-700 disabled:opacity-50 text-white font-black text-xs rounded-xl shadow-md transition"
             >
               <CheckCircle2 className="w-4 h-4 text-gold-400" />
               <span>Terapkan Pembayaran ke Rekap</span>
@@ -350,11 +427,16 @@ export const ImportPaymentsPage: React.FC = () => {
         )}
 
         {/* Preview Table */}
-        {previewItems.length > 0 && (
+        {previewItems.length > 0 && !isApplying && (
           <div className="space-y-3 pt-2">
-            <h4 className="font-bold text-xs uppercase tracking-wider text-slate-500">
-              Preview Baris Pembayaran ({previewItems.length} Transaksi)
-            </h4>
+            <div className="flex items-center justify-between">
+              <h4 className="font-bold text-xs uppercase tracking-wider text-slate-500">
+                Preview Baris Pembayaran ({previewItems.length} Transaksi)
+              </h4>
+              <span className="text-[11px] text-emerald-700 font-semibold">
+                ✓ Siap diproses ke Rekap & Dashboard
+              </span>
+            </div>
 
             <div className="border border-slate-200 rounded-xl overflow-hidden max-h-96 overflow-y-auto">
               <table className="w-full text-left border-collapse text-xs">
@@ -369,7 +451,7 @@ export const ImportPaymentsPage: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 font-medium">
-                  {previewItems.slice(0, 50).map((item, idx) => (
+                  {previewItems.slice(0, 100).map((item, idx) => (
                     <tr key={idx} className={item.matched ? 'hover:bg-slate-50/60' : 'bg-rose-50/30'}>
                       <td className="py-2 px-3 text-center text-slate-400 font-bold">{idx + 1}</td>
                       <td className="py-2 px-3 font-bold text-slate-800">{item.studentName}</td>
@@ -391,16 +473,16 @@ export const ImportPaymentsPage: React.FC = () => {
                         {item.paymentDate}
                       </td>
                       <td className="py-2 px-3 text-right font-bold text-emerald-700">
-                        Rp{item.amount.toLocaleString('id-ID')}
+                        Rp{Number(item.amount || 0).toLocaleString('id-ID')}
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-            {previewItems.length > 50 && (
+            {previewItems.length > 100 && (
               <p className="text-[11px] text-slate-400 text-center">
-                Menampilkan 50 dari {previewItems.length} transaksi pada preview.
+                Menampilkan 100 dari {previewItems.length} transaksi pada preview.
               </p>
             )}
           </div>
