@@ -14,6 +14,7 @@ import {
 import { useApp } from '../context/AppContext';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { SPP_MONTHS } from '../services/billingService';
+import { localStore } from '../services/dataStore';
 
 interface CategorySummary {
   name: string;
@@ -65,72 +66,112 @@ export const DashboardPage: React.FC = () => {
     setIsLoading(true);
 
     try {
+      let activeEnr: any[] = [];
+      let bills: any[] = [];
+      let recentPmts: any[] = [];
+      let allStudentsList: any[] = [];
+
       if (!isSupabaseConfigured) {
-        // Fallback demo statistics
-        setActiveStudentsCount(509);
-        setTotalBills(4689325000);
-        setTotalPayments(3268412000);
-        setTotalArrears(1420913000);
-        setPaidStudentsCount(215);
-        setArrearsStudentsCount(294);
-        setIsLoading(false);
-        return;
+        // Use local real Excel data
+        const storeStudents = localStore.getStudents();
+        const storeEnr = localStore.getEnrollments().filter((e) => e.academic_year_id === selectedAcademicYearId);
+        const storeBills = localStore.getBills().filter((b) => b.academic_year_id === selectedAcademicYearId);
+        const storeCategories = localStore.getCategories();
+        const storePayments = localStore.getPayments();
+        const storeAllocs = localStore.getAllocations();
+
+        allStudentsList = storeStudents;
+        activeEnr = storeEnr.map((e) => ({
+          ...e,
+          student: storeStudents.find((s) => s.id === e.student_id),
+        })).filter((e) => e.student && e.student.student_status === 'aktif');
+
+        bills = storeBills.map((b) => ({
+          ...b,
+          category: storeCategories.find((c) => c.id === b.category_id),
+          allocations: storeAllocs.filter((a) => a.bill_id === b.id).map((a) => ({
+            ...a,
+            payment: storePayments.find((p) => p.id === a.payment_id),
+          })),
+        }));
+
+        recentPmts = storePayments.filter((p) => p.status === 'valid').slice(0, 5).map((p) => {
+          const std = storeStudents.find((s) => s.id === p.student_id);
+          return {
+            ...p,
+            student: std,
+          };
+        });
+      } else {
+        const { data: enrollments, error: enrErr } = await supabase
+          .from('student_enrollments')
+          .select(`
+            id,
+            unit,
+            grade,
+            student:students(
+              id,
+              full_name,
+              nis,
+              student_status
+            )
+          `)
+          .eq('academic_year_id', selectedAcademicYearId);
+
+        if (enrErr) throw enrErr;
+
+        activeEnr = (enrollments || []).filter(
+          (e: any) => e.student && e.student.student_status === 'aktif'
+        );
+
+        const { data: billsData, error: billsErr } = await supabase
+          .from('bills')
+          .select(`
+            id,
+            student_id,
+            category_id,
+            billing_period,
+            amount,
+            status,
+            category:billing_categories(name, category_type),
+            allocations:payment_allocations(
+              allocated_amount,
+              payment:payments(status, payment_date)
+            )
+          `)
+          .eq('academic_year_id', selectedAcademicYearId);
+
+        if (billsErr) throw billsErr;
+        bills = billsData || [];
+
+        const { data: pmts } = await supabase
+          .from('payments')
+          .select(`
+            id,
+            transaction_number,
+            payment_date,
+            amount,
+            payment_method,
+            status,
+            student:students(full_name)
+          `)
+          .eq('status', 'valid')
+          .order('created_at', { ascending: false })
+          .limit(5);
+
+        recentPmts = pmts || [];
       }
 
-      // 1. Fetch active students in this academic year
-      const { data: enrollments, error: enrErr } = await supabase
-        .from('student_enrollments')
-        .select(`
-          id,
-          unit,
-          grade,
-          student:students(
-            id,
-            full_name,
-            nis,
-            student_status
-          )
-        `)
-        .eq('academic_year_id', selectedAcademicYearId);
-
-      if (enrErr) throw enrErr;
-
-      const activeEnr = (enrollments || []).filter(
-        (e: any) => e.student && e.student.student_status === 'aktif'
-      );
       setActiveStudentsCount(activeEnr.length);
 
-      // Map student_id to unit
       const studentUnitMap = new Map<string, string>();
-      activeEnr.forEach((e: any) => studentUnitMap.set(e.student.id, e.unit));
-
-      // 2. Fetch all bills for this academic year
-      const { data: bills, error: billsErr } = await supabase
-        .from('bills')
-        .select(`
-          id,
-          student_id,
-          category_id,
-          billing_period,
-          amount,
-          status,
-          category:billing_categories(name, category_type),
-          allocations:payment_allocations(
-            allocated_amount,
-            payment:payments(status, payment_date)
-          )
-        `)
-        .eq('academic_year_id', selectedAcademicYearId);
-
-      if (billsErr) throw billsErr;
+      activeEnr.forEach((e: any) => studentUnitMap.set(e.student_id || e.student?.id, e.unit));
 
       let sumBills = 0;
       let sumPaid = 0;
 
-      // Group by student for arrears tracking
       const studentBalanceMap = new Map<string, { studentId: string; totalBills: number; totalPaid: number }>();
 
-      // Categories map: Perlengkapan, Peralatan, Kegiatan, Pembangunan, Ujian, SPP, Lainnya
       const catMap: Record<string, {
         smpTagihan: number; smpBayar: number;
         smaTagihan: number; smaBayar: number;
@@ -144,7 +185,6 @@ export const DashboardPage: React.FC = () => {
         'Lainnya': { smpTagihan: 0, smpBayar: 0, smaTagihan: 0, smaBayar: 0 },
       };
 
-      // Monthly SPP target & collected
       const sppMonthMap: Record<string, { target: number; collected: number }> = {};
       SPP_MONTHS.forEach((m) => {
         sppMonthMap[m] = { target: 0, collected: 0 };
@@ -154,7 +194,6 @@ export const DashboardPage: React.FC = () => {
         const studentUnit = studentUnitMap.get(bill.student_id) || 'SMP IT';
         const billAmount = Number(bill.amount || 0);
 
-        // Valid payments only
         const validAllocations = (bill.allocations || []).filter(
           (a: any) => a.payment && a.payment.status === 'valid'
         );
@@ -164,7 +203,6 @@ export const DashboardPage: React.FC = () => {
           sumBills += billAmount;
           sumPaid += paidAmount;
 
-          // Track student balance
           if (!studentBalanceMap.has(bill.student_id)) {
             studentBalanceMap.set(bill.student_id, {
               studentId: bill.student_id,
@@ -177,7 +215,6 @@ export const DashboardPage: React.FC = () => {
           sBal.totalPaid += paidAmount;
         }
 
-        // Categorize
         const catObj: any = Array.isArray(bill.category) ? bill.category[0] : bill.category;
         let catName = catObj?.name || 'Lainnya';
         if (catName.includes('Syahriyyah') || catName.includes('SPP')) catName = 'SPP';
@@ -191,7 +228,6 @@ export const DashboardPage: React.FC = () => {
           catMap[catName].smaBayar += paidAmount;
         }
 
-        // Monthly SPP performance
         if (catName === 'SPP' && bill.billing_period && sppMonthMap[bill.billing_period]) {
           if (bill.status !== 'Bebas') {
             sppMonthMap[bill.billing_period].target += billAmount;
@@ -204,7 +240,6 @@ export const DashboardPage: React.FC = () => {
       setTotalPayments(sumPaid);
       setTotalArrears(Math.max(0, sumBills - sumPaid));
 
-      // Calculate paid vs arrears students
       let countPaid = 0;
       let countArrears = 0;
       const studentArrearsList: any[] = [];
@@ -225,7 +260,6 @@ export const DashboardPage: React.FC = () => {
       setPaidStudentsCount(countPaid);
       setArrearsStudentsCount(countArrears);
 
-      // Build category summaries table
       const catOrder = ['SPP', 'Perlengkapan', 'Peralatan', 'Kegiatan', 'Pembangunan', 'Ujian', 'Lainnya'];
       const builtSummaries: CategorySummary[] = catOrder.map((catKey) => {
         const data = catMap[catKey];
@@ -251,7 +285,6 @@ export const DashboardPage: React.FC = () => {
 
       setCategorySummaries(builtSummaries);
 
-      // Monthly SPP stats
       const builtMonthly = SPP_MONTHS.map((m) => {
         const item = sppMonthMap[m];
         const remaining = Math.max(0, item.target - item.collected);
@@ -266,60 +299,58 @@ export const DashboardPage: React.FC = () => {
       });
       setMonthlySppStats(builtMonthly);
 
-      // 3. Top arrears students details
       studentArrearsList.sort((a, b) => b.remaining - a.remaining);
-      const topFiveIds = studentArrearsList.slice(0, 5).map((s) => s.studentId);
+      const topFive = studentArrearsList.slice(0, 5);
 
-      if (topFiveIds.length > 0) {
-        const { data: topStudentsData } = await supabase
-          .from('students')
-          .select(`
-            id,
-            full_name,
-            nis,
-            student_enrollments(unit, grade)
-          `)
-          .in('id', topFiveIds);
-
-        const mergedTop = (topStudentsData || []).map((st: any) => {
-          const matchBal = studentArrearsList.find((s) => s.studentId === st.id);
-          const enr = st.student_enrollments?.[0];
+      if (!isSupabaseConfigured) {
+        const storeStudents = localStore.getStudents();
+        const storeEnr = localStore.getEnrollments();
+        const mergedTop = topFive.map((s) => {
+          const std = storeStudents.find((st) => st.id === s.studentId);
+          const enr = storeEnr.find((e) => e.student_id === s.studentId);
           return {
-            id: st.id,
-            name: st.full_name,
-            nis: st.nis,
+            id: s.studentId,
+            name: std?.full_name || 'Siswa',
+            nis: std?.nis,
             unit: enr?.unit || 'SMP IT',
             grade: enr?.grade || '-',
-            remaining: matchBal?.remaining || 0,
+            remaining: s.remaining,
           };
-        }).sort((a: any, b: any) => b.remaining - a.remaining);
-
+        });
         setTopArrears(mergedTop);
       } else {
-        setTopArrears([]);
+        const topFiveIds = topFive.map((s) => s.studentId);
+        if (topFiveIds.length > 0) {
+          const { data: topStudentsData } = await supabase
+            .from('students')
+            .select(`
+              id,
+              full_name,
+              nis,
+              student_enrollments(unit, grade)
+            `)
+            .in('id', topFiveIds);
+
+          const mergedTop = (topStudentsData || []).map((st: any) => {
+            const matchBal = studentArrearsList.find((s) => s.studentId === st.id);
+            const enr = st.student_enrollments?.[0];
+            return {
+              id: st.id,
+              name: st.full_name,
+              nis: st.nis,
+              unit: enr?.unit || 'SMP IT',
+              grade: enr?.grade || '-',
+              remaining: matchBal?.remaining || 0,
+            };
+          }).sort((a: any, b: any) => b.remaining - a.remaining);
+
+          setTopArrears(mergedTop);
+        } else {
+          setTopArrears([]);
+        }
       }
 
-      // 4. Fetch recent payments
-      const { data: recentPmts } = await supabase
-        .from('payments')
-        .select(`
-          id,
-          transaction_number,
-          payment_date,
-          amount,
-          payment_method,
-          status,
-          student:students(full_name),
-          allocations:payment_allocations(
-            bill:bills(billing_period, category:billing_categories(name))
-          )
-        `)
-        .eq('status', 'valid')
-        .order('created_at', { ascending: false })
-        .limit(5);
-
-      setRecentTransactions(recentPmts || []);
-
+      setRecentTransactions(recentPmts);
     } catch (err) {
       console.error('Error fetching dashboard stats:', err);
     } finally {
@@ -366,7 +397,6 @@ export const DashboardPage: React.FC = () => {
 
       {/* KPI Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Total Siswa Aktif */}
         <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs flex items-center justify-between">
           <div>
             <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Siswa Aktif</p>
@@ -381,7 +411,6 @@ export const DashboardPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Total Tagihan */}
         <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs flex items-center justify-between">
           <div>
             <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Total Tagihan</p>
@@ -393,7 +422,6 @@ export const DashboardPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Total Pembayaran Diterima */}
         <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs flex items-center justify-between">
           <div>
             <p className="text-xs font-bold uppercase tracking-wider text-emerald-600">Pemasukan Diterima</p>
@@ -407,7 +435,6 @@ export const DashboardPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Total Sisa Tagihan (Tunggakan) */}
         <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs flex items-center justify-between">
           <div>
             <p className="text-xs font-bold uppercase tracking-wider text-rose-500">Sisa Tagihan / Tunggakan</p>
@@ -420,7 +447,7 @@ export const DashboardPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Main Breakdown: NOMINAL KEUANGAN PER ITEM (Exact structure from Excel DASHBOARD) */}
+      {/* Main Breakdown: NOMINAL KEUANGAN PER ITEM */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
         <div className="px-6 py-4 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50/50">
           <div>
@@ -545,7 +572,6 @@ export const DashboardPage: React.FC = () => {
                 </tr>
               ))}
             </tbody>
-            {/* Grand Totals */}
             <tfoot>
               <tr className="bg-slate-100 font-black text-slate-900 border-t-2 border-slate-300">
                 <td className="py-3.5 px-4 text-center" colSpan={2}>
@@ -598,7 +624,6 @@ export const DashboardPage: React.FC = () => {
 
       {/* Grid: Monthly SPP Collection Rate & Top Arrears / Recent Activity */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Monthly SPP Collection Rate (2 Cols) */}
         <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-200 shadow-xs p-6">
           <div className="flex items-center justify-between mb-4">
             <div>
@@ -635,7 +660,6 @@ export const DashboardPage: React.FC = () => {
                     {item.percentage.toFixed(1)}%
                   </span>
                 </div>
-                {/* Progress bar */}
                 <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
                   <div
                     className={`h-full rounded-full transition-all duration-500 ${
@@ -653,9 +677,7 @@ export const DashboardPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Right Col: Top Arrears & Recent Payments */}
         <div className="space-y-6">
-          {/* Top Arrears Card */}
           <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-5">
             <h4 className="font-bold text-sm text-slate-800 mb-3 flex items-center justify-between">
               <span>Siswa Tunggakan Terbesar</span>
@@ -666,7 +688,7 @@ export const DashboardPage: React.FC = () => {
               <p className="text-xs text-slate-400 text-center py-4">Tidak ada data tunggakan.</p>
             ) : (
               <div className="divide-y divide-slate-100">
-                {topArrears.map((st, idx) => (
+                {topArrears.map((st) => (
                   <div key={st.id} className="py-2.5 flex items-center justify-between text-xs">
                     <div>
                       <p className="font-bold text-slate-800">{st.name}</p>
@@ -683,7 +705,6 @@ export const DashboardPage: React.FC = () => {
             )}
           </div>
 
-          {/* Recent Payments Card */}
           <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-5">
             <h4 className="font-bold text-sm text-slate-800 mb-3 flex items-center justify-between">
               <span>Transaksi Terakhir</span>

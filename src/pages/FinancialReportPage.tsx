@@ -12,8 +12,9 @@ import {
   CheckCircle2
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
-import { supabase } from '../lib/supabase';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { SPP_MONTHS } from '../services/billingService';
+import { localStore } from '../services/dataStore';
 import * as XLSX from 'xlsx';
 
 export const FinancialReportPage: React.FC = () => {
@@ -54,31 +55,53 @@ export const FinancialReportPage: React.FC = () => {
     setIsLoading(true);
 
     try {
-      // 1. Fetch bills with valid payments
-      const { data: bills, error: bErr } = await supabase
-        .from('bills')
-        .select(`
-          id,
-          student_id,
-          category_id,
-          billing_period,
-          amount,
-          status,
-          category:billing_categories(name),
-          allocations:payment_allocations(
-            allocated_amount,
-            payment:payments(status, payment_date)
-          )
-        `)
-        .eq('academic_year_id', selectedAcademicYearId);
+      let bills: any[] = [];
+      let enrollments: any[] = [];
 
-      if (bErr) throw bErr;
+      if (!isSupabaseConfigured) {
+        const storeBills = localStore.getBills().filter((b) => b.academic_year_id === selectedAcademicYearId);
+        const storeCats = localStore.getCategories();
+        const storePmts = localStore.getPayments();
+        const storeAllocs = localStore.getAllocations();
 
-      // 2. Fetch enrollments
-      const { data: enrollments } = await supabase
-        .from('student_enrollments')
-        .select('student_id, unit, grade')
-        .eq('academic_year_id', selectedAcademicYearId);
+        bills = storeBills.map((b) => ({
+          ...b,
+          category: storeCats.find((c) => c.id === b.category_id),
+          allocations: storeAllocs.filter((a) => a.bill_id === b.id).map((a) => ({
+            ...a,
+            payment: storePmts.find((p) => p.id === a.payment_id),
+          })),
+        }));
+
+        enrollments = localStore.getEnrollments().filter((e) => e.academic_year_id === selectedAcademicYearId);
+      } else {
+        const { data: billsData, error: bErr } = await supabase
+          .from('bills')
+          .select(`
+            id,
+            student_id,
+            category_id,
+            billing_period,
+            amount,
+            status,
+            category:billing_categories(name),
+            allocations:payment_allocations(
+              allocated_amount,
+              payment:payments(status, payment_date)
+            )
+          `)
+          .eq('academic_year_id', selectedAcademicYearId);
+
+        if (bErr) throw bErr;
+        bills = billsData || [];
+
+        const { data: enrData } = await supabase
+          .from('student_enrollments')
+          .select('student_id, unit, grade')
+          .eq('academic_year_id', selectedAcademicYearId);
+
+        enrollments = enrData || [];
+      }
 
       const studentUnitMap = new Map<string, string>();
       (enrollments || []).forEach((e) => studentUnitMap.set(e.student_id, e.unit));
@@ -245,7 +268,6 @@ export const FinancialReportPage: React.FC = () => {
         </button>
       </div>
 
-      {/* Report Tabs */}
       <div className="flex border-b border-slate-200 gap-2">
         <button
           onClick={() => setActiveReportTab('monthly')}
@@ -279,7 +301,6 @@ export const FinancialReportPage: React.FC = () => {
         </button>
       </div>
 
-      {/* Tab 1: Monthly SPP */}
       {activeReportTab === 'monthly' && (
         <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
           <table className="w-full text-left border-collapse text-xs">
@@ -351,7 +372,6 @@ export const FinancialReportPage: React.FC = () => {
         </div>
       )}
 
-      {/* Tab 2: Categories */}
       {activeReportTab === 'categories' && (
         <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
           <table className="w-full text-left border-collapse text-xs">
@@ -406,7 +426,6 @@ export const FinancialReportPage: React.FC = () => {
         </div>
       )}
 
-      {/* Tab 3: Units */}
       {activeReportTab === 'units' && (
         <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
           <table className="w-full text-left border-collapse text-xs">
