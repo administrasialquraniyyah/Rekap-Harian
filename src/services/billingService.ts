@@ -204,29 +204,50 @@ export const billingService = {
     }
 
     try {
-      const { data, error } = await supabase
-        .from('bills')
-        .select(`
-          *,
-          category:billing_categories(*),
-          student:students(*),
-          allocations:payment_allocations(
-            id,
-            allocated_amount,
-            payment:payments(
+      let allBillsData: any[] = [];
+      let page = 0;
+      const pageSize = 1000;
+      let hasMore = true;
+
+      while (hasMore) {
+        const from = page * pageSize;
+        const to = from + pageSize - 1;
+
+        const { data, error } = await supabase
+          .from('bills')
+          .select(`
+            *,
+            category:billing_categories(*),
+            student:students(*),
+            allocations:payment_allocations(
               id,
-              transaction_number,
-              payment_date,
-              status
+              allocated_amount,
+              payment:payments(
+                id,
+                transaction_number,
+                payment_date,
+                status
+              )
             )
-          )
-        `)
-        .eq('academic_year_id', academicYearId)
-        .range(0, 19999);
+          `)
+          .eq('academic_year_id', academicYearId)
+          .range(from, to);
 
-      if (error) throw error;
+        if (error) throw error;
 
-      return (data || []).map((bill: any) => {
+        if (data && data.length > 0) {
+          allBillsData = allBillsData.concat(data);
+          if (data.length < pageSize) {
+            hasMore = false;
+          } else {
+            page++;
+          }
+        } else {
+          hasMore = false;
+        }
+      }
+
+      return allBillsData.map((bill: any) => {
         const validAllocations = (bill.allocations || []).filter(
           (a: any) => a.payment && a.payment.status === 'valid'
         );
