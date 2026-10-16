@@ -1,0 +1,547 @@
+import * as XLSX from 'xlsx';
+import { supabase } from '../lib/supabase';
+import { UnitType, AdministrativeStatus, Gender } from '../types/database';
+import { SPP_MONTHS } from './billingService';
+
+export interface ImportPreviewItem {
+  no: number;
+  nis: string | null;
+  name: string;
+  gender: Gender;
+  phone: string | null;
+  unit: UnitType;
+  grade: string;
+  status: AdministrativeStatus;
+  sppNominal: number;
+  isFreeSPP: boolean;
+  otherBills: {
+    categoryName: string;
+    amount: number;
+  }[];
+  sppPayments: {
+    month: string;
+    paidDate: string | null; // YYYY-MM-DD
+    isPaid: boolean;
+    isFree: boolean;
+  }[];
+  otherPayments: {
+    categoryName: string;
+    paidAmount: number;
+  }[];
+}
+
+export interface ImportResult {
+  totalProcessed: number;
+  studentsCreated: number;
+  enrollmentsCreated: number;
+  billsCreated: number;
+  paymentsCreated: number;
+  errors: string[];
+}
+
+export const excelService = {
+  // Parse Excel workbook from buffer or array
+  parseAcuanWorkbook(workbook: XLSX.WorkBook): ImportPreviewItem[] {
+    const tagihanSheet = workbook.Sheets['TAGIHAN'];
+    const pembayaranSheet = workbook.Sheets['PEMBAYARAN'];
+
+    if (!tagihanSheet) {
+      throw new Error("Sheet 'TAGIHAN' tidak ditemukan pada file Excel acuan.");
+    }
+
+    const tagihanRows: any[] = XLSX.utils.sheet_to_json(tagihanSheet, { header: 1, defval: null });
+    const bayarRows: any[] = pembayaranSheet 
+      ? XLSX.utils.sheet_to_json(pembayaranSheet, { header: 1, defval: null }) 
+      : [];
+
+    if (tagihanRows.length < 2) {
+      throw new Error("Sheet 'TAGIHAN' kosong atau tidak memiliki data.");
+    }
+
+    // Map header columns of TAGIHAN
+    const tagihanHeader = (tagihanRows[0] || []).map((h: any) => String(h || '').trim().toUpperCase());
+    const colIdx = {
+      no: tagihanHeader.indexOf('NO'),
+      name: tagihanHeader.findIndex((h: string) => h.includes('NAMA')),
+      gender: tagihanHeader.indexOf('JK'),
+      status: tagihanHeader.indexOf('STATUS'),
+      phone: tagihanHeader.findIndex((h: string) => h.includes('TELPON')),
+      nis: tagihanHeader.findIndex((h: string) => h.includes('REKENING') || h.includes('NIS')),
+      unit: tagihanHeader.indexOf('JENJANG'),
+      grade: tagihanHeader.indexOf('KELAS'),
+      spp: tagihanHeader.indexOf('SPP'),
+      perlengkapan: tagihanHeader.indexOf('PERLENGKAPAN'),
+      peralatan: tagihanHeader.indexOf('PERALATAN'),
+      kegiatan: tagihanHeader.indexOf('KEGIATAN'),
+      pembangunan: tagihanHeader.indexOf('PEMBANGUNAN'),
+      ujian: tagihanHeader.indexOf('UJIAN'),
+      lainnya: tagihanHeader.findIndex((h: string) => h.includes('LAINNYA')),
+    };
+
+    // Build lookup for PEMBAYARAN sheet by student name
+    const bayarHeader = bayarRows.length > 0 
+      ? (bayarRows[0] || []).map((h: any) => String(h || '').trim())
+      : [];
+
+    const bayarLookupByName = new Map<string, any[]>();
+    for (let r = 1; r < bayarRows.length; r++) {
+      const row = bayarRows[r];
+      const name = String(row[1] || '').trim().toLowerCase();
+      if (name) {
+        bayarLookupByName.set(name, row);
+      }
+    }
+
+    const previewList: ImportPreviewItem[] = [];
+
+    // Process each student row in TAGIHAN
+    for (let r = 1; r < tagihanRows.length; r++) {
+      const row = tagihanRows[r];
+      const rawName = row[colIdx.name];
+      if (!rawName || String(rawName).trim() === '') continue;
+
+      const name = String(rawName).trim();
+      const rawGender = String(row[colIdx.gender] || '').trim().toLowerCase();
+      const gender: Gender = (rawGender.startsWith('p') || rawGender.includes('perempuan')) ? 'Perempuan' : 'Laki-laki';
+
+      let rawStatus = String(row[colIdx.status] || 'Mampu').trim();
+      let status: AdministrativeStatus = 'Mampu';
+      if (/yatim/i.test(rawStatus)) status = 'Yatim';
+      else if (/dhuafa/i.test(rawStatus)) status = 'Dhuafa';
+      else if (/beasiswa/i.test(rawStatus)) status = 'Beasiswa';
+      else if (/rekomendasi/i.test(rawStatus)) status = 'Rekomendasi';
+
+      let phone = row[colIdx.phone] ? String(row[colIdx.phone]).replace(/\D/g, '') : null;
+      if (phone && !phone.startsWith('62') && phone.startsWith('0')) {
+        phone = '62' + phone.substring(1);
+      }
+
+      let rawNis = row[colIdx.nis] ? String(row[colIdx.nis]).trim() : null;
+      if (rawNis && (rawNis.toLowerCase() === 'kosong' || rawNis === '-')) {
+        rawNis = null;
+      }
+
+      const unitRaw = String(row[colIdx.unit] || 'SMP IT').trim();
+      const unit: UnitType = unitRaw.includes('SMA') ? 'SMA IT' : (unitRaw.includes('TK') ? 'TK IT' : (unitRaw.includes('SD') ? 'SD IT' : 'SMP IT'));
+      const grade = String(row[colIdx.grade] || 'VII').trim();
+
+      const sppNominal = Number(row[colIdx.spp] || 0);
+      const isFreeSPP = status === 'Yatim' || status === 'Beasiswa' || sppNominal === 0;
+
+      // Non-SPP bills
+      const otherBills = [
+        { categoryName: 'Perlengkapan', amount: Number(row[colIdx.perlengkapan] || 0) },
+        { categoryName: 'Peralatan', amount: Number(row[colIdx.peralatan] || 0) },
+        { categoryName: 'Kegiatan', amount: Number(row[colIdx.kegiatan] || 0) },
+        { categoryName: 'Pembangunan', amount: Number(row[colIdx.pembangunan] || 0) },
+        { categoryName: 'Ujian', amount: Number(row[colIdx.ujian] || 0) },
+        { categoryName: 'Lainnya', amount: Number(row[colIdx.lainnya] || 0) },
+      ].filter((b) => b.amount > 0);
+
+      // Match with PEMBAYARAN sheet
+      const bayarRow = bayarLookupByName.get(name.toLowerCase());
+      const sppPayments: { month: string; paidDate: string | null; isPaid: boolean; isFree: boolean }[] = [];
+      const otherPayments: { categoryName: string; paidAmount: number }[] = [];
+
+      if (bayarRow) {
+        // Find indices of months in PEMBAYARAN header
+        SPP_MONTHS.forEach((month) => {
+          const mIdx = bayarHeader.findIndex((h: string) => h.toLowerCase() === month.toLowerCase());
+          if (mIdx !== -1) {
+            const cellVal = bayarRow[mIdx];
+            if (cellVal === 'Free' || isFreeSPP) {
+              sppPayments.push({ month, paidDate: null, isPaid: true, isFree: true });
+            } else if (cellVal && typeof cellVal === 'number' && cellVal > 10000) {
+              // Excel date serial number
+              const d = XLSX.SSF.parse_date_code(cellVal);
+              const dateStr = `${d.y}-${String(d.m).padStart(2, '0')}-${String(d.d).padStart(2, '0')}`;
+              sppPayments.push({ month, paidDate: dateStr, isPaid: true, isFree: false });
+            } else if (cellVal instanceof Date) {
+              const dateStr = cellVal.toISOString().split('T')[0];
+              sppPayments.push({ month, paidDate: dateStr, isPaid: true, isFree: false });
+            } else if (typeof cellVal === 'string' && /\d{1,4}[-/.]\d{1,2}[-/.]\d{1,4}/.test(cellVal)) {
+              // Parsed date string
+              const parts = cellVal.split(/[-/.]/);
+              let dateStr = cellVal;
+              if (parts.length === 3) {
+                if (parts[2].length === 4) {
+                  dateStr = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+                } else if (parts[0].length === 4) {
+                  dateStr = `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
+                }
+              }
+              sppPayments.push({ month, paidDate: dateStr, isPaid: true, isFree: false });
+            } else {
+              sppPayments.push({ month, paidDate: null, isPaid: false, isFree: false });
+            }
+          } else {
+            sppPayments.push({ month, paidDate: null, isPaid: false, isFree: false });
+          }
+        });
+
+        // Other payments in PEMBAYARAN sheet
+        const catCols = ['PERLENGKAPAN', 'PERALATAN', 'KEGIATAN', 'PEMBANGUNAN', 'UJIAN', 'LAINNYA'];
+        catCols.forEach((cat) => {
+          const cIdx = bayarHeader.findIndex((h: string) => h.toUpperCase().includes(cat));
+          if (cIdx !== -1) {
+            const pVal = Number(bayarRow[cIdx] || 0);
+            if (pVal > 0) {
+              const properName = cat === 'LAINNYA' ? 'Lainnya' : (cat.charAt(0) + cat.slice(1).toLowerCase());
+              otherPayments.push({ categoryName: properName, paidAmount: pVal });
+            }
+          }
+        });
+      } else {
+        SPP_MONTHS.forEach((month) => {
+          sppPayments.push({ month, paidDate: null, isPaid: isFreeSPP, isFree: isFreeSPP });
+        });
+      }
+
+      previewList.push({
+        no: Number(row[colIdx.no] || r),
+        nis: rawNis,
+        name,
+        gender,
+        phone,
+        unit,
+        grade,
+        status,
+        sppNominal,
+        isFreeSPP,
+        otherBills,
+        sppPayments,
+        otherPayments,
+      });
+    }
+
+    return previewList;
+  },
+
+  // Save imported preview into Supabase
+  async executeImport(
+    previewList: ImportPreviewItem[],
+    academicYearId: string,
+    onProgress?: (processed: number, total: number) => void
+  ): Promise<ImportResult> {
+    const result: ImportResult = {
+      totalProcessed: 0,
+      studentsCreated: 0,
+      enrollmentsCreated: 0,
+      billsCreated: 0,
+      paymentsCreated: 0,
+      errors: [],
+    };
+
+    // 1. Fetch or create categories
+    const { data: categories } = await supabase.from('billing_categories').select('*');
+    const catMap = new Map<string, string>();
+    (categories || []).forEach((c) => catMap.set(c.name.toLowerCase(), c.id));
+
+    // Ensure standard categories exist
+    const standardCategories = ['SPP', 'Perlengkapan', 'Peralatan', 'Kegiatan', 'Pembangunan', 'Ujian', 'Lainnya'];
+    for (const catName of standardCategories) {
+      if (!catMap.has(catName.toLowerCase())) {
+        const { data: newCat } = await supabase
+          .from('billing_categories')
+          .insert([{
+            name: catName,
+            category_type: catName === 'SPP' ? 'monthly' : 'one_time',
+            is_active: true
+          }])
+          .select()
+          .single();
+        if (newCat) catMap.set(catName.toLowerCase(), newCat.id);
+      }
+    }
+
+    const total = previewList.length;
+
+    for (let i = 0; i < previewList.length; i++) {
+      const item = previewList[i];
+      try {
+        // A. Find or create student
+        let studentId: string;
+        let existingStudentQuery = supabase.from('students').select('id, full_name, nis');
+        if (item.nis) {
+          existingStudentQuery = existingStudentQuery.or(`nis.eq.${item.nis},full_name.ilike.${item.name}`);
+        } else {
+          existingStudentQuery = existingStudentQuery.ilike('full_name', item.name);
+        }
+
+        const { data: existingStudents } = await existingStudentQuery.limit(1);
+
+        if (existingStudents && existingStudents.length > 0) {
+          studentId = existingStudents[0].id;
+          // Update phone / nis if needed
+          await supabase.from('students').update({
+            gender: item.gender,
+            phone: item.phone || undefined,
+            nis: item.nis || existingStudents[0].nis,
+            updated_at: new Date().toISOString()
+          }).eq('id', studentId);
+        } else {
+          const { data: newStudent, error: sErr } = await supabase
+            .from('students')
+            .insert([{
+              full_name: item.name,
+              nis: item.nis,
+              gender: item.gender,
+              phone: item.phone,
+              student_status: 'aktif'
+            }])
+            .select()
+            .single();
+
+          if (sErr) throw sErr;
+          studentId = newStudent.id;
+          result.studentsCreated++;
+        }
+
+        // B. Upsert enrollment for this academic year
+        const { error: enrErr } = await supabase
+          .from('student_enrollments')
+          .upsert([{
+            student_id: studentId,
+            academic_year_id: academicYearId,
+            unit: item.unit,
+            grade: item.grade,
+            administrative_status: item.status,
+          }], { onConflict: 'student_id,academic_year_id' });
+
+        if (enrErr) throw enrErr;
+        result.enrollmentsCreated++;
+
+        // C. Create SPP bills (12 months)
+        const sppCatId = catMap.get('spp')!;
+        for (const sppPay of item.sppPayments) {
+          // Check if bill exists
+          const { data: existingBill } = await supabase
+            .from('bills')
+            .select('id, status')
+            .eq('student_id', studentId)
+            .eq('academic_year_id', academicYearId)
+            .eq('category_id', sppCatId)
+            .eq('billing_period', sppPay.month)
+            .maybeSingle();
+
+          let billId: string;
+          const initialStatus = sppPay.isFree ? 'Bebas' : (sppPay.isPaid ? 'Lunas' : 'Belum Dibayar');
+
+          if (existingBill) {
+            billId = existingBill.id;
+            await supabase.from('bills').update({
+              amount: item.sppNominal,
+              status: sppPay.isFree ? 'Bebas' : existingBill.status,
+              updated_at: new Date().toISOString()
+            }).eq('id', billId);
+          } else {
+            const { data: newBill, error: bErr } = await supabase
+              .from('bills')
+              .insert([{
+                student_id: studentId,
+                academic_year_id: academicYearId,
+                category_id: sppCatId,
+                billing_period: sppPay.month,
+                amount: item.sppNominal,
+                status: initialStatus,
+                description: `SPP Bulan ${sppPay.month}`
+              }])
+              .select()
+              .single();
+
+            if (bErr) throw bErr;
+            billId = newBill.id;
+            result.billsCreated++;
+          }
+
+          // If paid and not free, create payment & allocation if not already recorded
+          if (sppPay.isPaid && !sppPay.isFree && sppPay.paidDate && item.sppNominal > 0) {
+            const { data: existingAlloc } = await supabase
+              .from('payment_allocations')
+              .select('id')
+              .eq('bill_id', billId)
+              .limit(1);
+
+            if (!existingAlloc || existingAlloc.length === 0) {
+              const trxNum = `TRX-${sppPay.paidDate.replace(/-/g, '')}-SPP-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+              const { data: pmt, error: pErr } = await supabase
+                .from('payments')
+                .insert([{
+                  transaction_number: trxNum,
+                  student_id: studentId,
+                  payment_date: sppPay.paidDate,
+                  amount: item.sppNominal,
+                  payment_method: 'Import Excel',
+                  notes: `Pembayaran SPP ${sppPay.month} via Import Excel`,
+                  created_by: 'Import Excel',
+                  status: 'valid'
+                }])
+                .select()
+                .single();
+
+              if (!pErr && pmt) {
+                await supabase.from('payment_allocations').insert([{
+                  payment_id: pmt.id,
+                  bill_id: billId,
+                  allocated_amount: item.sppNominal
+                }]);
+                await supabase.from('bills').update({ status: 'Lunas' }).eq('id', billId);
+                result.paymentsCreated++;
+              }
+            }
+          }
+        }
+
+        // D. Create other bills & payments
+        for (const oBill of item.otherBills) {
+          const catId = catMap.get(oBill.categoryName.toLowerCase());
+          if (!catId) continue;
+
+          const { data: existingBill } = await supabase
+            .from('bills')
+            .select('id, status')
+            .eq('student_id', studentId)
+            .eq('academic_year_id', academicYearId)
+            .eq('category_id', catId)
+            .maybeSingle();
+
+          let billId: string;
+          if (existingBill) {
+            billId = existingBill.id;
+            await supabase.from('bills').update({
+              amount: oBill.amount,
+              updated_at: new Date().toISOString()
+            }).eq('id', billId);
+          } else {
+            const { data: newBill, error: obErr } = await supabase
+              .from('bills')
+              .insert([{
+                student_id: studentId,
+                academic_year_id: academicYearId,
+                category_id: catId,
+                billing_period: null,
+                amount: oBill.amount,
+                status: 'Belum Dibayar',
+                description: `Tagihan ${oBill.categoryName}`
+              }])
+              .select()
+              .single();
+
+            if (obErr) throw obErr;
+            billId = newBill.id;
+            result.billsCreated++;
+          }
+
+          // Check if there is paid amount for this category
+          const matchingPaid = item.otherPayments.find(
+            (p) => p.categoryName.toLowerCase() === oBill.categoryName.toLowerCase()
+          );
+
+          if (matchingPaid && matchingPaid.paidAmount > 0) {
+            const { data: existingAlloc } = await supabase
+              .from('payment_allocations')
+              .select('id')
+              .eq('bill_id', billId)
+              .limit(1);
+
+            if (!existingAlloc || existingAlloc.length === 0) {
+              const todayStr = new Date().toISOString().split('T')[0];
+              const trxNum = `TRX-${todayStr.replace(/-/g, '')}-${oBill.categoryName.substring(0, 3).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+              const { data: pmt, error: pErr } = await supabase
+                .from('payments')
+                .insert([{
+                  transaction_number: trxNum,
+                  student_id: studentId,
+                  payment_date: todayStr,
+                  amount: matchingPaid.paidAmount,
+                  payment_method: 'Import Excel',
+                  notes: `Pembayaran ${oBill.categoryName} via Import Excel`,
+                  created_by: 'Import Excel',
+                  status: 'valid'
+                }])
+                .select()
+                .single();
+
+              if (!pErr && pmt) {
+                await supabase.from('payment_allocations').insert([{
+                  payment_id: pmt.id,
+                  bill_id: billId,
+                  allocated_amount: matchingPaid.paidAmount
+                }]);
+
+                const newStatus = matchingPaid.paidAmount >= oBill.amount ? 'Lunas' : 'Belum Lunas';
+                await supabase.from('bills').update({ status: newStatus }).eq('id', billId);
+                result.paymentsCreated++;
+              }
+            }
+          }
+        }
+
+        result.totalProcessed++;
+        if (onProgress) onProgress(i + 1, total);
+      } catch (err: any) {
+        result.errors.push(`Gagal memproses siswa ${item.name}: ${err.message || String(err)}`);
+      }
+    }
+
+    return result;
+  },
+
+  // Export Rekap Pembayaran to Excel (Matching sheet PEMBAYARAN layout)
+  exportRekapPembayaran(data: any[], academicYearName: string) {
+    const rows = data.map((item, idx) => ({
+      'NO': idx + 1,
+      'NAMA': item.student_name,
+      'JENJANG': item.unit,
+      'KELAS': item.grade,
+      'STATUS': item.administrative_status,
+      'SPP': item.spp_nominal,
+      'Juli': item.spp_juli,
+      'Agustus': item.spp_agustus,
+      'September': item.spp_september,
+      'Oktober': item.spp_oktober,
+      'November': item.spp_november,
+      'Desember': item.spp_desember,
+      'Januari': item.spp_januari,
+      'Februari': item.spp_februari,
+      'Maret': item.spp_maret,
+      'April': item.spp_april,
+      'Mei': item.spp_mei,
+      'Juni': item.spp_juni,
+      'PERLENGKAPAN': item.paid_perlengkapan || 0,
+      'PERALATAN': item.paid_peralatan || 0,
+      'KEGIATAN': item.paid_kegiatan || 0,
+      'PEMBANGUNAN': item.paid_pembangunan || 0,
+      'UJIAN': item.paid_ujian || 0,
+      'LAINNYA': item.paid_lainnya || 0,
+      'NO. TELPON': item.phone || '',
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(rows);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'PEMBAYARAN');
+    XLSX.writeFile(workbook, `Rekap_Pembayaran_${academicYearName.replace('/', '-')}.xlsx`);
+  },
+
+  // Export Rekap Tunggakan to Excel
+  exportRekapTunggakan(data: any[], title: string = 'Rekap_Tunggakan') {
+    const rows = data.map((item, idx) => ({
+      'NO': idx + 1,
+      'NIS': item.nis || '-',
+      'NAMA SISWA': item.student_name,
+      'JENJANG': item.unit,
+      'KELAS': item.grade,
+      'TAHUN AJARAN': item.academic_years,
+      'TOTAL TAGIHAN (Rp)': item.total_bills,
+      'TOTAL PEMBAYARAN (Rp)': item.total_paid,
+      'TOTAL TUNGGAKAN (Rp)': item.total_arrears,
+      'STATUS': item.total_arrears === 0 ? 'Lunas' : 'Menunggak',
+      'RINCIAN TUNGGAKAN': item.details || ''
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(rows);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'TUNGGAKAN');
+    XLSX.writeFile(workbook, `${title}_${new Date().toISOString().split('T')[0]}.xlsx`);
+  }
+};
