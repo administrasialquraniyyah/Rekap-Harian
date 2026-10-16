@@ -9,7 +9,9 @@ import {
   Clock,
   X,
   Calendar,
-  Layers
+  Layers,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { billingService, SPP_MONTHS } from '../services/billingService';
@@ -24,10 +26,13 @@ export const BillsPage: React.FC = () => {
   const [students, setStudents] = useState<Student[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Filters
+  // Filters & Pagination
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('ALL');
+  const [monthFilter, setMonthFilter] = useState<string>('ALL');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<number>(50);
 
   // Modal Add Bill
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -133,10 +138,15 @@ export const BillsPage: React.FC = () => {
       period.toLowerCase().includes(search.toLowerCase());
 
     const matchesCat = categoryFilter === 'ALL' || b.category_id === categoryFilter;
+    const matchesMonth = monthFilter === 'ALL' || (b.billing_period && b.billing_period.toLowerCase() === monthFilter.toLowerCase());
     const matchesStatus = statusFilter === 'ALL' || b.calculated_status === statusFilter;
 
-    return matchesSearch && matchesCat && matchesStatus;
+    return matchesSearch && matchesCat && matchesMonth && matchesStatus;
   });
+
+  const totalPages = Math.ceil(filteredBills.length / pageSize) || 1;
+  const startIndex = (currentPage - 1) * pageSize;
+  const paginatedBills = filteredBills.slice(startIndex, startIndex + pageSize);
 
   return (
     <div className="space-y-5">
@@ -144,7 +154,7 @@ export const BillsPage: React.FC = () => {
         <div>
           <h3 className="text-lg font-bold text-slate-800">Daftar Tagihan Siswa</h3>
           <p className="text-xs text-slate-500">
-            Kelola tagihan bulanan (SPP) dan tagihan satu kali untuk T.A. {selectedAcademicYear?.name || '2026/2027'}
+            Kelola tagihan bulanan (SPP) dan tagihan satu kali untuk T.A. {selectedAcademicYear?.name || '2026/2027'} (Total {bills.length.toLocaleString('id-ID')} tagihan)
           </p>
         </div>
 
@@ -158,14 +168,17 @@ export const BillsPage: React.FC = () => {
       </div>
 
       {/* Filter bar */}
-      <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs grid grid-cols-1 sm:grid-cols-4 gap-3">
         <div className="relative">
           <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
           <input
             type="text"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Cari siswa atau nama tagihan..."
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setCurrentPage(1);
+            }}
+            placeholder="Cari siswa atau tagihan..."
             className="w-full pl-9 pr-3 py-2 text-xs font-medium rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-700 bg-slate-50/50"
           />
         </div>
@@ -173,7 +186,10 @@ export const BillsPage: React.FC = () => {
         <div>
           <select
             value={categoryFilter}
-            onChange={(e) => setCategoryFilter(e.target.value)}
+            onChange={(e) => {
+              setCategoryFilter(e.target.value);
+              setCurrentPage(1);
+            }}
             className="w-full py-2 px-3 text-xs font-medium rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-700 bg-white"
           >
             <option value="ALL">Semua Kategori Tagihan</option>
@@ -187,8 +203,29 @@ export const BillsPage: React.FC = () => {
 
         <div>
           <select
+            value={monthFilter}
+            onChange={(e) => {
+              setMonthFilter(e.target.value);
+              setCurrentPage(1);
+            }}
+            className="w-full py-2 px-3 text-xs font-medium rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-700 bg-white"
+          >
+            <option value="ALL">Semua Periode / Bulan</option>
+            {SPP_MONTHS.map((m) => (
+              <option key={m} value={m}>
+                Bulan {m}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <select
             value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
+            onChange={(e) => {
+              setStatusFilter(e.target.value);
+              setCurrentPage(1);
+            }}
             className="w-full py-2 px-3 text-xs font-medium rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-700 bg-white"
           >
             <option value="ALL">Semua Status</option>
@@ -240,9 +277,9 @@ export const BillsPage: React.FC = () => {
                   </td>
                 </tr>
               ) : (
-                filteredBills.slice(0, 100).map((bill, idx) => (
+                paginatedBills.map((bill, idx) => (
                   <tr key={bill.id} className="hover:bg-slate-50/60 transition">
-                    <td className="py-3 px-4 text-center text-slate-400 font-bold">{idx + 1}</td>
+                    <td className="py-3 px-4 text-center text-slate-400 font-bold">{startIndex + idx + 1}</td>
                     <td className="py-3 px-4 font-bold text-slate-800">
                       {bill.student?.full_name || 'Siswa'}
                       {bill.student?.nis && (
@@ -298,6 +335,53 @@ export const BillsPage: React.FC = () => {
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* Pagination Bar */}
+        <div className="px-5 py-3.5 border-t border-slate-200 bg-slate-50/80 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-600 font-medium">
+          <div>
+            Menampilkan <strong className="text-slate-800">{filteredBills.length === 0 ? 0 : startIndex + 1}</strong> - <strong className="text-slate-800">{Math.min(startIndex + pageSize, filteredBills.length)}</strong> dari <strong className="text-slate-800">{filteredBills.length.toLocaleString('id-ID')}</strong> tagihan (<strong className="text-emerald-700">{students.length} Siswa</strong>)
+          </div>
+
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1.5">
+              <span className="text-[11px] text-slate-500 font-medium">Baris:</span>
+              <select
+                value={pageSize}
+                onChange={(e) => {
+                  setPageSize(Number(e.target.value));
+                  setCurrentPage(1);
+                }}
+                className="py-1 px-2 border border-slate-200 rounded-lg bg-white text-xs font-semibold focus:outline-none"
+              >
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+                <option value={200}>200</option>
+              </select>
+            </div>
+
+            <div className="flex items-center gap-1">
+              <button
+                disabled={currentPage <= 1}
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                className="p-1 rounded-lg border border-slate-200 hover:bg-white disabled:opacity-30 disabled:cursor-not-allowed transition"
+                title="Halaman Sebelumnya"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <span className="px-2 font-bold text-slate-800 text-xs">
+                {currentPage} / {totalPages}
+              </span>
+              <button
+                disabled={currentPage >= totalPages}
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                className="p-1 rounded-lg border border-slate-200 hover:bg-white disabled:opacity-30 disabled:cursor-not-allowed transition"
+                title="Halaman Berikutnya"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 

@@ -57,6 +57,7 @@ export const DashboardPage: React.FC = () => {
   const [totalBills, setTotalBills] = useState(0);
   const [totalPayments, setTotalPayments] = useState(0);
   const [totalArrears, setTotalArrears] = useState(0);
+  const [activeDueArrears, setActiveDueArrears] = useState(0);
   const [paidStudentsCount, setPaidStudentsCount] = useState(0);
   const [arrearsStudentsCount, setArrearsStudentsCount] = useState(0);
 
@@ -369,9 +370,13 @@ export const DashboardPage: React.FC = () => {
         }
       }
 
+      const totalRemaining = Math.max(0, sumBills - sumPaid);
+      const dueArrears = Math.max(0, sumActiveDueBills - sumPaid);
+
       setTotalBills(sumBills);
       setTotalPayments(sumPaid);
-      setTotalArrears(Math.max(0, sumActiveDueBills - sumPaid));
+      setTotalArrears(totalRemaining);
+      setActiveDueArrears(dueArrears);
 
       let countPaid = 0;
       let countArrears = 0;
@@ -634,9 +639,11 @@ export const DashboardPage: React.FC = () => {
 
         <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs flex items-center justify-between">
           <div>
-            <p className="text-xs font-bold uppercase tracking-wider text-rose-500">Tunggakan Jatuh Tempo</p>
+            <p className="text-xs font-bold uppercase tracking-wider text-rose-500">Sisa Tagihan (1 Thn)</p>
             <h3 className="text-2xl font-black text-rose-600 mt-1">{formatRupiah(totalArrears)}</h3>
-            <p className="text-xs text-rose-500/80 font-medium mt-1">Kewajiban aktif s/d Oktober</p>
+            <p className="text-xs text-slate-500 mt-1">
+              <span className="text-rose-600 font-bold">{formatRupiah(activeDueArrears)}</span> jatuh tempo s/d Okt
+            </p>
           </div>
           <div className="w-12 h-12 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center">
             <AlertCircle className="w-6 h-6" />
