@@ -543,5 +543,181 @@ export const excelService = {
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'TUNGGAKAN');
     XLSX.writeFile(workbook, `${title}_${new Date().toISOString().split('T')[0]}.xlsx`);
+  },
+
+  // Download official Template Excel for initial database upload
+  downloadTemplateAcuanExcel() {
+    const tagihanData = [
+      {
+        "NO": 1,
+        "NAMA": "Muhammad Fatih",
+        "JK": "L",
+        "STATUS": "Mampu",
+        "NO TELPON": "081234567890",
+        "NO REKENING": "202607001",
+        "JENJANG": "SMP IT",
+        "KELAS": "VII A",
+        "SPP": 1335000,
+        "PERLENGKAPAN": 500000,
+        "PERALATAN": 250000,
+        "KEGIATAN": 300000,
+        "PEMBANGUNAN": 1000000,
+        "UJIAN": 200000,
+        "LAINNYA": 0
+      },
+      {
+        "NO": 2,
+        "NAMA": "Aisyah Humaira",
+        "JK": "P",
+        "STATUS": "Yatim",
+        "NO TELPON": "081298765432",
+        "NO REKENING": "202607002",
+        "JENJANG": "SMA IT",
+        "KELAS": "X IPA",
+        "SPP": 0,
+        "PERLENGKAPAN": 500000,
+        "PERALATAN": 250000,
+        "KEGIATAN": 300000,
+        "PEMBANGUNAN": 0,
+        "UJIAN": 200000,
+        "LAINNYA": 0
+      },
+      {
+        "NO": 3,
+        "NAMA": "Umar Al-Faruq",
+        "JK": "L",
+        "STATUS": "Mampu",
+        "NO TELPON": "085612345678",
+        "NO REKENING": "202607003",
+        "JENJANG": "SMP IT",
+        "KELAS": "VIII B",
+        "SPP": 1250000,
+        "PERLENGKAPAN": 0,
+        "PERALATAN": 0,
+        "KEGIATAN": 300000,
+        "PEMBANGUNAN": 500000,
+        "UJIAN": 200000,
+        "LAINNYA": 50000
+      }
+    ];
+
+    const pembayaranData = [
+      {
+        "NO": 1,
+        "NAMA": "Muhammad Fatih",
+        "JK": "L",
+        "STATUS": "Mampu",
+        "NO REKENING": "202607001",
+        "JENJANG": "SMP IT",
+        "KELAS": "VII A",
+        "SPP": 1335000,
+        "Juli": "2026-07-25",
+        "Agustus": "2026-08-28",
+        "September": "",
+        "Oktober": "",
+        "November": "",
+        "Desember": "",
+        "Januari": "",
+        "Februari": "",
+        "Maret": "",
+        "April": "",
+        "Mei": "",
+        "Juni": "",
+        "PERLENGKAPAN": 500000,
+        "PERALATAN": 250000,
+        "KEGIATAN": 0,
+        "PEMBANGUNAN": 500000,
+        "UJIAN": 0,
+        "LAINNYA": 0,
+        "NO. TELPON": "081234567890"
+      },
+      {
+        "NO": 2,
+        "NAMA": "Aisyah Humaira",
+        "JK": "P",
+        "STATUS": "Yatim",
+        "NO REKENING": "202607002",
+        "JENJANG": "SMA IT",
+        "KELAS": "X IPA",
+        "SPP": 0,
+        "Juli": "Free",
+        "Agustus": "Free",
+        "September": "Free",
+        "Oktober": "Free",
+        "November": "Free",
+        "Desember": "Free",
+        "Januari": "Free",
+        "Februari": "Free",
+        "Maret": "Free",
+        "April": "Free",
+        "Mei": "Free",
+        "Juni": "Free",
+        "PERLENGKAPAN": 500000,
+        "PERALATAN": 250000,
+        "KEGIATAN": 300000,
+        "PEMBANGUNAN": 0,
+        "UJIAN": 0,
+        "LAINNYA": 0,
+        "NO. TELPON": "081298765432"
+      },
+      {
+        "NO": 3,
+        "NAMA": "Umar Al-Faruq",
+        "JK": "L",
+        "STATUS": "Mampu",
+        "NO REKENING": "202607003",
+        "JENJANG": "SMP IT",
+        "KELAS": "VIII B",
+        "SPP": 1250000,
+        "Juli": "2026-07-20",
+        "Agustus": "",
+        "September": "",
+        "Oktober": "",
+        "November": "",
+        "Desember": "",
+        "Januari": "",
+        "Februari": "",
+        "Maret": "",
+        "April": "",
+        "Mei": "",
+        "Juni": "",
+        "PERLENGKAPAN": 0,
+        "PERALATAN": 0,
+        "KEGIATAN": 300000,
+        "PEMBANGUNAN": 0,
+        "UJIAN": 0,
+        "LAINNYA": 0,
+        "NO. TELPON": "085612345678"
+      }
+    ];
+
+    const petunjukData = [
+      { "BAGIAN": "SHEET TAGIHAN", "KETERANGAN": "Menentukan data master siswa dan tarif kewajiban tagihan tahun ajaran terkait." },
+      { "BAGIAN": "NO", "KETERANGAN": "Nomor urut siswa." },
+      { "BAGIAN": "NAMA", "KETERANGAN": "Nama lengkap siswa (Wajib unik/sesuai identitas)." },
+      { "BAGIAN": "JK", "KETERANGAN": "Jenis kelamin: L (Laki-laki) atau P (Perempuan)." },
+      { "BAGIAN": "STATUS", "KETERANGAN": "Status administrasi: Mampu, Yatim, Dhuafa, Beasiswa, atau Rekomendasi." },
+      { "BAGIAN": "NO TELPON", "KETERANGAN": "Nomor WhatsApp aktif orang tua / wali." },
+      { "BAGIAN": "NO REKENING / NIS", "KETERANGAN": "Nomor Induk Siswa (NIS) atau No Rekening virtual account." },
+      { "BAGIAN": "JENJANG", "KETERANGAN": "Jenjang pendidikan: TK IT, SD IT, SMP IT, atau SMA IT." },
+      { "BAGIAN": "KELAS", "KETERANGAN": "Tingkat kelas (contoh: VII A, VIII, IX, X, XI, XII)." },
+      { "BAGIAN": "SPP", "KETERANGAN": "Tarif SPP bulanan siswa (contoh: 1335000). Jika gratis isi 0." },
+      { "BAGIAN": "PERLENGKAPAN dll", "KETERANGAN": "Nominal kewajiban tagihan non-SPP selama 1 tahun ajaran." },
+      { "BAGIAN": "-----------------", "KETERANGAN": "------------------------------------------------------------------" },
+      { "BAGIAN": "SHEET PEMBAYARAN", "KETERANGAN": "Menyimpan data riwayat pembayaran tanggal SPP dan nominal Non-SPP." },
+      { "BAGIAN": "Bulan SPP (Juli s.d Juni)", "KETERANGAN": "Isi dengan TANGGAL pembayaran (contoh: 2026-07-25 atau 25/07/2026). Jika gratis isi 'Free'. Jika belum bayar, KOSONGKAN." },
+      { "BAGIAN": "Kategori Non-SPP", "KETERANGAN": "Isi dengan akumulasi NOMINAL rupiah yang sudah dibayarkan oleh siswa (contoh: 500000)." }
+    ];
+
+    const wb = XLSX.utils.book_new();
+    const wsTagihan = XLSX.utils.json_to_sheet(tagihanData);
+    const wsPembayaran = XLSX.utils.json_to_sheet(pembayaranData);
+    const wsPetunjuk = XLSX.utils.json_to_sheet(petunjukData);
+
+    XLSX.utils.book_append_sheet(wb, wsTagihan, 'TAGIHAN');
+    XLSX.utils.book_append_sheet(wb, wsPembayaran, 'PEMBAYARAN');
+    XLSX.utils.book_append_sheet(wb, wsPetunjuk, 'PETUNJUK PENGISIAN');
+
+    XLSX.writeFile(wb, 'Format_Template_Administrasi_AlQuraniyyah.xlsx');
   }
 };

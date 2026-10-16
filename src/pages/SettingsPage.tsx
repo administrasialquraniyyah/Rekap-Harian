@@ -3,6 +3,9 @@ import {
   Settings,
   FileSpreadsheet,
   Upload,
+  Download,
+  Info,
+  FileCheck,
   CheckCircle2,
   AlertCircle,
   Database,
@@ -34,6 +37,7 @@ export const SettingsPage: React.FC = () => {
   const [isImporting, setIsImporting] = useState(false);
   const [importProgress, setImportProgress] = useState<{ processed: number; total: number }>({ processed: 0, total: 0 });
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
+  const [showFormatGuide, setShowFormatGuide] = useState(true);
 
   // Billing Categories States
   const [categories, setCategories] = useState<BillingCategory[]>([]);
@@ -174,14 +178,36 @@ export const SettingsPage: React.FC = () => {
       {/* TAB 1: IMPORT EXCEL */}
       {activeTab === 'import' && (
         <div className="space-y-5">
-          <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-xs space-y-4">
-            <div>
-              <h4 className="font-bold text-base text-slate-800">
-                Import File Excel Acuan Administrasi
-              </h4>
-              <p className="text-xs text-slate-500 mt-1">
-                Pilih file <code>Administrasi_SMP_SMA_2026-2027.xlsx</code>. Sistem akan otomatis memetakan data sheet <strong>TAGIHAN</strong> dan <strong>PEMBAYARAN</strong>, membuat siswa, tagihan, serta transaksi tanggal pembayaran sebenarnya secara atomik.
-              </p>
+          <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-xs space-y-5">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-1 border-b border-slate-100">
+              <div>
+                <h4 className="font-bold text-base text-slate-800">
+                  Import File Excel Acuan Administrasi
+                </h4>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Import database siswa, tagihan, dan pembayaran sekaligus dari file Excel.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => excelService.downloadTemplateAcuanExcel()}
+                  className="flex items-center gap-2 px-4 py-2 bg-emerald-800 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs transition"
+                >
+                  <Download className="w-4 h-4 text-gold-300" />
+                  <span>Unduh Format Template Excel (.xlsx)</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setShowFormatGuide(!showFormatGuide)}
+                  className="flex items-center gap-1.5 px-3 py-2 border border-slate-300 hover:bg-slate-50 text-slate-700 font-semibold text-xs rounded-xl transition"
+                >
+                  <Info className="w-4 h-4 text-emerald-700" />
+                  <span>{showFormatGuide ? 'Tutup Panduan' : 'Lihat Format'}</span>
+                </button>
+              </div>
             </div>
 
             {/* Target Academic Year indicator */}
@@ -194,6 +220,69 @@ export const SettingsPage: React.FC = () => {
                 T.A. Aktif
               </span>
             </div>
+
+            {/* FORMAT GUIDE BOX */}
+            {showFormatGuide && (
+              <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3 text-xs">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <FileCheck className="w-4 h-4 text-emerald-800" />
+                    <span className="font-bold text-slate-800">Ketentuan Format File Excel (.xlsx)</span>
+                  </div>
+                  <span className="text-[11px] text-emerald-800 font-semibold bg-emerald-100/70 px-2 py-0.5 rounded">
+                    Wajib Memiliki 2 Sheet
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-[11px]">
+                  {/* Sheet 1 TAGIHAN */}
+                  <div className="bg-white p-3.5 rounded-xl border border-slate-200 space-y-2">
+                    <div className="flex items-center justify-between border-b pb-1.5">
+                      <strong className="text-emerald-900 font-black">1. Sheet "TAGIHAN"</strong>
+                      <span className="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-mono">Master Siswa & Tarif</span>
+                    </div>
+                    <p className="text-slate-600 leading-relaxed">
+                      Menyimpan data identitas siswa dan besaran tagihan per siswa.
+                    </p>
+                    <div className="bg-slate-50 p-2 rounded-lg font-mono text-[10px] text-slate-700 border border-slate-100 space-y-0.5">
+                      <p className="font-bold text-emerald-800">Nama-nama Kolom Header:</p>
+                      <p className="break-all">NO, NAMA, JK, STATUS, NO TELPON, NO REKENING (NIS), JENJANG, KELAS, SPP, PERLENGKAPAN, PERALATAN, KEGIATAN, PEMBANGUNAN, UJIAN, LAINNYA</p>
+                    </div>
+                    <ul className="list-disc list-inside text-slate-500 space-y-0.5 text-[10px]">
+                      <li><strong>JK:</strong> L (Laki-laki) atau P (Perempuan)</li>
+                      <li><strong>STATUS:</strong> Mampu, Yatim, Dhuafa, Beasiswa, Rekomendasi</li>
+                      <li><strong>JENJANG:</strong> TK IT, SD IT, SMP IT, atau SMA IT</li>
+                    </ul>
+                  </div>
+
+                  {/* Sheet 2 PEMBAYARAN */}
+                  <div className="bg-white p-3.5 rounded-xl border border-slate-200 space-y-2">
+                    <div className="flex items-center justify-between border-b pb-1.5">
+                      <strong className="text-emerald-900 font-black">2. Sheet "PEMBAYARAN"</strong>
+                      <span className="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-mono">Riwayat Pembayaran</span>
+                    </div>
+                    <p className="text-slate-600 leading-relaxed">
+                      Menyimpan riwayat tanggal pembayaran SPP bulanan & nominal non-SPP.
+                    </p>
+                    <div className="bg-slate-50 p-2 rounded-lg font-mono text-[10px] text-slate-700 border border-slate-100 space-y-0.5">
+                      <p className="font-bold text-emerald-800">Nama-nama Kolom Header:</p>
+                      <p className="break-all">NO, NAMA, JK, STATUS, NO REKENING, JENJANG, KELAS, SPP, <strong>Juli, Agustus, September, ..., Juni</strong>, PERLENGKAPAN, PERALATAN, KEGIATAN, PEMBANGUNAN, UJIAN, LAINNYA, NO. TELPON</p>
+                    </div>
+                    <ul className="list-disc list-inside text-slate-500 space-y-0.5 text-[10px]">
+                      <li><strong>Kolom Bulan:</strong> Isi <strong>tanggal bayar</strong> (contoh: <code>28/08/2026</code>) atau <code>Free</code> jika gratis. Kosongkan jika belum bayar.</li>
+                      <li><strong>Non-SPP:</strong> Isi <strong>angka nominal</strong> yang sudah dibayar (contoh: <code>500000</code>).</li>
+                    </ul>
+                  </div>
+                </div>
+
+                <div className="bg-emerald-50/80 p-2.5 rounded-xl border border-emerald-200 flex items-start gap-2 text-[11px] text-emerald-950">
+                  <Info className="w-4 h-4 text-emerald-700 shrink-0 mt-0.5" />
+                  <p>
+                    <strong>Tips Cepat:</strong> File Excel acuan yayasan Anda (<code>Administrasi_SMP_SMA_2026-2027.xlsx</code>) sudah persis memenuhi struktur ini. Anda bisa langsung mengunggah file tersebut tanpa perlu merubah formatnya!
+                  </p>
+                </div>
+              </div>
+            )}
 
             {/* File Upload Box */}
             <div className="border-2 border-dashed border-slate-300 rounded-2xl p-8 text-center hover:border-emerald-600 transition bg-slate-50/50">
@@ -212,7 +301,7 @@ export const SettingsPage: React.FC = () => {
                   <Upload className="w-6 h-6" />
                 </div>
                 <p className="font-bold text-sm text-slate-800 mt-2">
-                  {importFile ? importFile.name : 'Klik untuk memilih file Excel acuan'}
+                  {importFile ? importFile.name : 'Klik untuk memilih file Excel (atau drag file Administrasi_SMP_SMA_2026-2027.xlsx ke sini)'}
                 </p>
                 <p className="text-xs text-slate-400">
                   Mendukung file .xlsx (format sheet TAGIHAN & PEMBAYARAN)
