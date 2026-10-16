@@ -19,14 +19,22 @@ import {
   FolderOpen
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
-import { isSupabaseConfigured } from '../lib/supabase';
+import { isSupabaseConfigured, supabase } from '../lib/supabase';
 import { excelService, ImportPreviewItem, ImportResult } from '../services/excelService';
 import { billingService } from '../services/billingService';
 import { BillingCategory } from '../types/database';
 import * as XLSX from 'xlsx';
 
 export const SettingsPage: React.FC = () => {
-  const { selectedAcademicYearId, selectedAcademicYear, showToast, refreshKey, triggerRefresh } = useApp();
+  const {
+    academicYears,
+    selectedAcademicYearId,
+    selectedAcademicYear,
+    setSelectedAcademicYearId,
+    showToast,
+    refreshKey,
+    triggerRefresh
+  } = useApp();
 
   const [activeTab, setActiveTab] = useState<'import' | 'categories' | 'database'>('import');
 
@@ -74,9 +82,27 @@ export const SettingsPage: React.FC = () => {
 
   // Execute import
   const handleStartImport = async () => {
-    if (previewItems.length === 0 || !selectedAcademicYearId) {
-      showToast('Pilih tahun ajaran dan file Excel yang valid', 'error');
+    if (previewItems.length === 0) {
+      showToast('Pilih file Excel acuan terlebih dahulu', 'error');
       return;
+    }
+
+    let targetYearId = selectedAcademicYearId || selectedAcademicYear?.id || (academicYears.length > 0 ? academicYears[0].id : '');
+    if (!targetYearId) {
+      try {
+        const { data: yList } = await supabase.from('academic_years').select('id').limit(1);
+        if (yList && yList.length > 0) {
+          targetYearId = yList[0].id;
+          setSelectedAcademicYearId(targetYearId);
+        }
+      } catch (e) {
+        console.warn(e);
+      }
+    }
+
+    if (!targetYearId) {
+      targetYearId = '9a798c1f-7deb-4b6d-b94e-56a83a9fe6f7';
+      setSelectedAcademicYearId(targetYearId);
     }
 
     setIsImporting(true);
@@ -85,7 +111,7 @@ export const SettingsPage: React.FC = () => {
     try {
       const res = await excelService.executeImport(
         previewItems,
-        selectedAcademicYearId,
+        targetYearId,
         (processed, total) => {
           setImportProgress({ processed, total });
         }

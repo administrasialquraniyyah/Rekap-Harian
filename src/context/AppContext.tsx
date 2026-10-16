@@ -52,12 +52,34 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setIsLoadingYears(true);
     try {
       if (isSupabaseConfigured) {
-        const years = await academicYearService.getAll();
-        setAcademicYears(years);
-        if (years.length > 0) {
-          const active = years.find((y) => y.status === 'active') || years[0];
-          setSelectedAcademicYearId((prev) => prev || active.id);
+        let years = await academicYearService.getAll();
+        if (!years || years.length === 0) {
+          try {
+            const created = await academicYearService.create({
+              name: '2026/2027',
+              start_date: '2026-07-01',
+              end_date: '2027-06-30',
+              status: 'active'
+            });
+            years = [created];
+          } catch (e) {
+            console.warn('Auto create year error:', e);
+          }
         }
+
+        if (!years || years.length === 0) {
+          years = [{
+            id: '9a798c1f-7deb-4b6d-b94e-56a83a9fe6f7',
+            name: '2026/2027',
+            start_date: '2026-07-01',
+            end_date: '2027-06-30',
+            status: 'active'
+          }];
+        }
+
+        setAcademicYears(years);
+        const active = years.find((y) => y.status === 'active') || years[0];
+        setSelectedAcademicYearId((prev) => (prev && years.some((y) => y.id === prev) ? prev : active.id));
       } else {
         // Fallback default academic year
         const defaultYear: AcademicYear = {
