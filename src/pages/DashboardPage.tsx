@@ -37,6 +37,8 @@ interface CategorySummary {
 export interface StudentClassRecap {
   unit: 'SMP IT' | 'SMA IT';
   grade: string;
+  lakiLaki: number;
+  perempuan: number;
   mampu: number;
   yatim: number;
   lainnya: number;
@@ -58,7 +60,9 @@ export const DashboardPage: React.FC = () => {
   const [paidStudentsCount, setPaidStudentsCount] = useState(0);
   const [arrearsStudentsCount, setArrearsStudentsCount] = useState(0);
 
-  // Student status breakdown
+  // Student status & gender breakdown
+  const [totalLaki, setTotalLaki] = useState(0);
+  const [totalPerempuan, setTotalPerempuan] = useState(0);
   const [totalMampu, setTotalMampu] = useState(0);
   const [totalYatim, setTotalYatim] = useState(0);
   const [totalLainnya, setTotalLainnya] = useState(0);
@@ -140,6 +144,7 @@ export const DashboardPage: React.FC = () => {
               id,
               full_name,
               nis,
+              gender,
               student_status
             )
           `)
@@ -224,14 +229,16 @@ export const DashboardPage: React.FC = () => {
 
       // Initialize class recap
       const defaultRecaps: StudentClassRecap[] = [
-        { unit: 'SMP IT', grade: 'VII', mampu: 0, yatim: 0, lainnya: 0, total: 0 },
-        { unit: 'SMP IT', grade: 'VIII', mampu: 0, yatim: 0, lainnya: 0, total: 0 },
-        { unit: 'SMP IT', grade: 'IX', mampu: 0, yatim: 0, lainnya: 0, total: 0 },
-        { unit: 'SMA IT', grade: 'X', mampu: 0, yatim: 0, lainnya: 0, total: 0 },
-        { unit: 'SMA IT', grade: 'XI', mampu: 0, yatim: 0, lainnya: 0, total: 0 },
-        { unit: 'SMA IT', grade: 'XII', mampu: 0, yatim: 0, lainnya: 0, total: 0 },
+        { unit: 'SMP IT', grade: 'VII', lakiLaki: 0, perempuan: 0, mampu: 0, yatim: 0, lainnya: 0, total: 0 },
+        { unit: 'SMP IT', grade: 'VIII', lakiLaki: 0, perempuan: 0, mampu: 0, yatim: 0, lainnya: 0, total: 0 },
+        { unit: 'SMP IT', grade: 'IX', lakiLaki: 0, perempuan: 0, mampu: 0, yatim: 0, lainnya: 0, total: 0 },
+        { unit: 'SMA IT', grade: 'X', lakiLaki: 0, perempuan: 0, mampu: 0, yatim: 0, lainnya: 0, total: 0 },
+        { unit: 'SMA IT', grade: 'XI', lakiLaki: 0, perempuan: 0, mampu: 0, yatim: 0, lainnya: 0, total: 0 },
+        { unit: 'SMA IT', grade: 'XII', lakiLaki: 0, perempuan: 0, mampu: 0, yatim: 0, lainnya: 0, total: 0 },
       ];
 
+      let countLaki = 0;
+      let countPerempuan = 0;
       let countMampu = 0;
       let countYatim = 0;
       let countLainnya = 0;
@@ -247,8 +254,20 @@ export const DashboardPage: React.FC = () => {
           }
         }
 
-        const st = (e.administrative_status || 'Mampu').toLowerCase();
         const row = defaultRecaps.find((r) => r.unit === e.unit && r.grade === e.grade);
+
+        // Gender counting (L / P)
+        const g = (e.student?.gender || '').toString().trim().toLowerCase();
+        const isLaki = g === 'l' || g.startsWith('laki');
+        if (isLaki) {
+          countLaki++;
+          if (row) row.lakiLaki++;
+        } else {
+          countPerempuan++;
+          if (row) row.perempuan++;
+        }
+
+        const st = (e.administrative_status || 'Mampu').toLowerCase();
         if (row) {
           if (st === 'mampu') {
             row.mampu++;
@@ -264,6 +283,8 @@ export const DashboardPage: React.FC = () => {
         }
       });
 
+      setTotalLaki(countLaki);
+      setTotalPerempuan(countPerempuan);
       setTotalMampu(countMampu);
       setTotalYatim(countYatim);
       setTotalLainnya(countLainnya);
@@ -435,6 +456,8 @@ export const DashboardPage: React.FC = () => {
       'No': idx + 1,
       'Jenjang': r.unit,
       'Kelas': r.grade,
+      'Laki-laki (L)': r.lakiLaki,
+      'Perempuan (P)': r.perempuan,
       'Mampu (Reguler)': r.mampu,
       'Yatim (Bebas Biaya)': r.yatim,
       'Lainnya (Beasiswa/Dhuafa)': r.lainnya,
@@ -444,23 +467,29 @@ export const DashboardPage: React.FC = () => {
 
     // Subtotal rows
     const smpTotal = classRecapList.filter((r) => r.unit === 'SMP IT').reduce((acc, r) => ({
+      lakiLaki: acc.lakiLaki + r.lakiLaki,
+      perempuan: acc.perempuan + r.perempuan,
       mampu: acc.mampu + r.mampu,
       yatim: acc.yatim + r.yatim,
       lainnya: acc.lainnya + r.lainnya,
       total: acc.total + r.total,
-    }), { mampu: 0, yatim: 0, lainnya: 0, total: 0 });
+    }), { lakiLaki: 0, perempuan: 0, mampu: 0, yatim: 0, lainnya: 0, total: 0 });
 
     const smaTotal = classRecapList.filter((r) => r.unit === 'SMA IT').reduce((acc, r) => ({
+      lakiLaki: acc.lakiLaki + r.lakiLaki,
+      perempuan: acc.perempuan + r.perempuan,
       mampu: acc.mampu + r.mampu,
       yatim: acc.yatim + r.yatim,
       lainnya: acc.lainnya + r.lainnya,
       total: acc.total + r.total,
-    }), { mampu: 0, yatim: 0, lainnya: 0, total: 0 });
+    }), { lakiLaki: 0, perempuan: 0, mampu: 0, yatim: 0, lainnya: 0, total: 0 });
 
     exportRows.push({
       'No': '' as any,
       'Jenjang': 'SUBTOTAL SMP IT',
       'Kelas': 'VII - IX',
+      'Laki-laki (L)': smpTotal.lakiLaki,
+      'Perempuan (P)': smpTotal.perempuan,
       'Mampu (Reguler)': smpTotal.mampu,
       'Yatim (Bebas Biaya)': smpTotal.yatim,
       'Lainnya (Beasiswa/Dhuafa)': smpTotal.lainnya,
@@ -472,6 +501,8 @@ export const DashboardPage: React.FC = () => {
       'No': '' as any,
       'Jenjang': 'SUBTOTAL SMA IT',
       'Kelas': 'X - XII',
+      'Laki-laki (L)': smaTotal.lakiLaki,
+      'Perempuan (P)': smaTotal.perempuan,
       'Mampu (Reguler)': smaTotal.mampu,
       'Yatim (Bebas Biaya)': smaTotal.yatim,
       'Lainnya (Beasiswa/Dhuafa)': smaTotal.lainnya,
@@ -483,6 +514,8 @@ export const DashboardPage: React.FC = () => {
       'No': '' as any,
       'Jenjang': 'TOTAL KESELURUHAN',
       'Kelas': 'Semua Kelas',
+      'Laki-laki (L)': totalLaki,
+      'Perempuan (P)': totalPerempuan,
       'Mampu (Reguler)': totalMampu,
       'Yatim (Bebas Biaya)': totalYatim,
       'Lainnya (Beasiswa/Dhuafa)': totalLainnya,
@@ -502,18 +535,22 @@ export const DashboardPage: React.FC = () => {
   });
 
   const smpSubtotal = classRecapList.filter((r) => r.unit === 'SMP IT').reduce((acc, r) => ({
+    lakiLaki: acc.lakiLaki + r.lakiLaki,
+    perempuan: acc.perempuan + r.perempuan,
     mampu: acc.mampu + r.mampu,
     yatim: acc.yatim + r.yatim,
     lainnya: acc.lainnya + r.lainnya,
     total: acc.total + r.total,
-  }), { mampu: 0, yatim: 0, lainnya: 0, total: 0 });
+  }), { lakiLaki: 0, perempuan: 0, mampu: 0, yatim: 0, lainnya: 0, total: 0 });
 
   const smaSubtotal = classRecapList.filter((r) => r.unit === 'SMA IT').reduce((acc, r) => ({
+    lakiLaki: acc.lakiLaki + r.lakiLaki,
+    perempuan: acc.perempuan + r.perempuan,
     mampu: acc.mampu + r.mampu,
     yatim: acc.yatim + r.yatim,
     lainnya: acc.lainnya + r.lainnya,
     total: acc.total + r.total,
-  }), { mampu: 0, yatim: 0, lainnya: 0, total: 0 });
+  }), { lakiLaki: 0, perempuan: 0, mampu: 0, yatim: 0, lainnya: 0, total: 0 });
 
   return (
     <div className="space-y-6 pb-12">
@@ -603,11 +640,11 @@ export const DashboardPage: React.FC = () => {
             <div className="flex items-center gap-2">
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-600"></span>
               <h3 className="text-base font-bold text-slate-800">
-                Rekap Jenis Kelas Tiap Kelas & Jenjang (Status Mampu / Yatim / Lainnya)
+                Rekap Siswa Tiap Kelas & Jenjang (Jenis Kelamin L/P & Status Administrasi)
               </h3>
             </div>
             <p className="text-xs text-slate-500 mt-0.5">
-              Rincian sebaran siswa reguler (mampu), bebas biaya (yatim), serta program keringanan / beasiswa di tiap tingkatan kelas.
+              Rincian lengkap sebaran jenis kelamin (Laki-laki / Perempuan) serta status reguler (mampu), bebas biaya (yatim), dan keringanan/beasiswa di tiap tingkatan kelas.
             </p>
           </div>
 
@@ -649,43 +686,69 @@ export const DashboardPage: React.FC = () => {
           </div>
         </div>
 
-        {/* 3 Status Visual Cards */}
-        <div className="p-6 border-b border-slate-100 grid grid-cols-1 sm:grid-cols-3 gap-4 bg-emerald-50/20">
-          <div className="bg-white p-4 rounded-xl border border-emerald-100 shadow-xs flex items-center justify-between">
+        {/* Visual Cards: Gender & Administrative Status */}
+        <div className="p-6 border-b border-slate-100 grid grid-cols-2 sm:grid-cols-5 gap-3 bg-slate-50/40">
+          <div className="bg-white p-3.5 rounded-xl border border-sky-100 shadow-xs flex items-center justify-between">
             <div>
-              <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Siswa Mampu (Reguler)</p>
-              <h4 className="text-xl font-black text-emerald-800 mt-0.5">{totalMampu} Siswa</h4>
-              <p className="text-[11px] text-emerald-600 font-medium">
-                {activeStudentsCount > 0 ? ((totalMampu / activeStudentsCount) * 100).toFixed(1) : 0}% dari total siswa
+              <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Laki-laki (L)</p>
+              <h4 className="text-xl font-black text-sky-700 mt-0.5">{totalLaki} Siswa</h4>
+              <p className="text-[11px] text-sky-600 font-medium">
+                {activeStudentsCount > 0 ? ((totalLaki / activeStudentsCount) * 100).toFixed(1) : 0}% santri putra
               </p>
             </div>
-            <div className="w-10 h-10 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold">
+            <div className="w-9 h-9 rounded-lg bg-sky-50 text-sky-600 flex items-center justify-center font-bold">
               <Users className="w-5 h-5" />
             </div>
           </div>
 
-          <div className="bg-white p-4 rounded-xl border border-purple-100 shadow-xs flex items-center justify-between">
+          <div className="bg-white p-3.5 rounded-xl border border-rose-100 shadow-xs flex items-center justify-between">
             <div>
-              <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Siswa Yatim (Free)</p>
-              <h4 className="text-xl font-black text-purple-800 mt-0.5">{totalYatim} Siswa</h4>
-              <p className="text-[11px] text-purple-600 font-medium">
-                Bebas infaq SPP yayasan ({activeStudentsCount > 0 ? ((totalYatim / activeStudentsCount) * 100).toFixed(1) : 0}%)
+              <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Perempuan (P)</p>
+              <h4 className="text-xl font-black text-rose-700 mt-0.5">{totalPerempuan} Siswi</h4>
+              <p className="text-[11px] text-rose-600 font-medium">
+                {activeStudentsCount > 0 ? ((totalPerempuan / activeStudentsCount) * 100).toFixed(1) : 0}% santri putri
               </p>
             </div>
-            <div className="w-10 h-10 rounded-lg bg-purple-100 text-purple-700 flex items-center justify-center font-bold">
+            <div className="w-9 h-9 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center font-bold">
+              <Users className="w-5 h-5" />
+            </div>
+          </div>
+
+          <div className="bg-white p-3.5 rounded-xl border border-emerald-100 shadow-xs flex items-center justify-between">
+            <div>
+              <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Mampu (Reguler)</p>
+              <h4 className="text-xl font-black text-emerald-800 mt-0.5">{totalMampu} Siswa</h4>
+              <p className="text-[11px] text-emerald-600 font-medium">
+                {activeStudentsCount > 0 ? ((totalMampu / activeStudentsCount) * 100).toFixed(1) : 0}% dari total
+              </p>
+            </div>
+            <div className="w-9 h-9 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center font-bold">
+              <CheckCircle className="w-5 h-5" />
+            </div>
+          </div>
+
+          <div className="bg-white p-3.5 rounded-xl border border-purple-100 shadow-xs flex items-center justify-between">
+            <div>
+              <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Yatim (Free)</p>
+              <h4 className="text-xl font-black text-purple-800 mt-0.5">{totalYatim} Siswa</h4>
+              <p className="text-[11px] text-purple-600 font-medium">
+                Bebas SPP ({activeStudentsCount > 0 ? ((totalYatim / activeStudentsCount) * 100).toFixed(1) : 0}%)
+              </p>
+            </div>
+            <div className="w-9 h-9 rounded-lg bg-purple-50 text-purple-700 flex items-center justify-center font-bold">
               <HeartHandshake className="w-5 h-5" />
             </div>
           </div>
 
-          <div className="bg-white p-4 rounded-xl border border-blue-100 shadow-xs flex items-center justify-between">
+          <div className="bg-white p-3.5 rounded-xl border border-blue-100 shadow-xs flex items-center justify-between col-span-2 sm:col-span-1">
             <div>
-              <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Lainnya (Beasiswa / Dhuafa)</p>
+              <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Lainnya / Beasiswa</p>
               <h4 className="text-xl font-black text-blue-800 mt-0.5">{totalLainnya} Siswa</h4>
               <p className="text-[11px] text-blue-600 font-medium">
-                Skema subsidi & keringanan ({activeStudentsCount > 0 ? ((totalLainnya / activeStudentsCount) * 100).toFixed(1) : 0}%)
+                Subsidi ({activeStudentsCount > 0 ? ((totalLainnya / activeStudentsCount) * 100).toFixed(1) : 0}%)
               </p>
             </div>
-            <div className="w-10 h-10 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center font-bold">
+            <div className="w-9 h-9 rounded-lg bg-blue-50 text-blue-700 flex items-center justify-center font-bold">
               <Award className="w-5 h-5" />
             </div>
           </div>
@@ -699,6 +762,12 @@ export const DashboardPage: React.FC = () => {
                 <th className="py-3 px-4 border-b border-slate-700 w-12 text-center">No</th>
                 <th className="py-3 px-4 border-b border-slate-700">Jenjang</th>
                 <th className="py-3 px-4 border-b border-slate-700 text-center">Kelas</th>
+                <th className="py-3 px-4 border-b border-slate-700 text-right bg-sky-950/60 text-sky-200">
+                  L (Laki-laki)
+                </th>
+                <th className="py-3 px-4 border-b border-slate-700 text-right bg-rose-950/60 text-rose-200">
+                  P (Perempuan)
+                </th>
                 <th className="py-3 px-4 border-b border-slate-700 text-right bg-emerald-900/40">
                   Mampu (Reguler)
                 </th>
@@ -732,6 +801,12 @@ export const DashboardPage: React.FC = () => {
                     <td className="py-3 px-4 text-center font-black text-slate-800">
                       Kelas {row.grade}
                     </td>
+                    <td className="py-3 px-4 text-right font-bold text-sky-700 bg-sky-50/30">
+                      {row.lakiLaki} L
+                    </td>
+                    <td className="py-3 px-4 text-right font-bold text-rose-700 bg-rose-50/30">
+                      {row.perempuan} P
+                    </td>
                     <td className="py-3 px-4 text-right font-bold text-emerald-700 bg-emerald-50/30">
                       {row.mampu} Siswa
                     </td>
@@ -760,6 +835,8 @@ export const DashboardPage: React.FC = () => {
                   <td className="py-2.5 px-4 text-center" colSpan={3}>
                     SUBTOTAL SMP IT (Kelas VII - IX)
                   </td>
+                  <td className="py-2.5 px-4 text-right text-sky-800 font-black">{smpSubtotal.lakiLaki} L</td>
+                  <td className="py-2.5 px-4 text-right text-rose-800 font-black">{smpSubtotal.perempuan} P</td>
                   <td className="py-2.5 px-4 text-right text-emerald-800 font-black">{smpSubtotal.mampu} Siswa</td>
                   <td className="py-2.5 px-4 text-right text-purple-800 font-black">{smpSubtotal.yatim} Siswa</td>
                   <td className="py-2.5 px-4 text-right text-blue-800 font-black">{smpSubtotal.lainnya} Siswa</td>
@@ -776,6 +853,8 @@ export const DashboardPage: React.FC = () => {
                   <td className="py-2.5 px-4 text-center" colSpan={3}>
                     SUBTOTAL SMA IT (Kelas X - XII)
                   </td>
+                  <td className="py-2.5 px-4 text-right text-sky-800 font-black">{smaSubtotal.lakiLaki} L</td>
+                  <td className="py-2.5 px-4 text-right text-rose-800 font-black">{smaSubtotal.perempuan} P</td>
                   <td className="py-2.5 px-4 text-right text-emerald-800 font-black">{smaSubtotal.mampu} Siswa</td>
                   <td className="py-2.5 px-4 text-right text-purple-800 font-black">{smaSubtotal.yatim} Siswa</td>
                   <td className="py-2.5 px-4 text-right text-blue-800 font-black">{smaSubtotal.lainnya} Siswa</td>
@@ -792,6 +871,8 @@ export const DashboardPage: React.FC = () => {
                   <td className="py-3 px-4 text-center" colSpan={3}>
                     TOTAL KESELURUHAN (SMP IT & SMA IT)
                   </td>
+                  <td className="py-3 px-4 text-right text-sky-300 font-black">{totalLaki} L</td>
+                  <td className="py-3 px-4 text-right text-rose-300 font-black">{totalPerempuan} P</td>
                   <td className="py-3 px-4 text-right text-emerald-300 font-black">{totalMampu} Siswa</td>
                   <td className="py-3 px-4 text-right text-purple-300 font-black">{totalYatim} Siswa</td>
                   <td className="py-3 px-4 text-right text-blue-300 font-black">{totalLainnya} Siswa</td>
