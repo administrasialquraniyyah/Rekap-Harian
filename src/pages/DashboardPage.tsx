@@ -354,12 +354,14 @@ export const DashboardPage: React.FC = () => {
           }
         }
 
-        if (studentUnit === 'SMP IT') {
-          if (bill.status !== 'Bebas') catMap[catName].smpTagihan += billAmount;
-          catMap[catName].smpBayar += paidAmount;
-        } else {
-          if (bill.status !== 'Bebas') catMap[catName].smaTagihan += billAmount;
-          catMap[catName].smaBayar += paidAmount;
+        if (!isUpcoming || paidAmount > 0) {
+          if (studentUnit === 'SMP IT') {
+            if (bill.status !== 'Bebas') catMap[catName].smpTagihan += billAmount;
+            catMap[catName].smpBayar += paidAmount;
+          } else {
+            if (bill.status !== 'Bebas') catMap[catName].smaTagihan += billAmount;
+            catMap[catName].smaBayar += paidAmount;
+          }
         }
 
         if (catName === 'SPP' && bill.billing_period && sppMonthMap[bill.billing_period]) {
@@ -370,13 +372,12 @@ export const DashboardPage: React.FC = () => {
         }
       }
 
-      const totalRemaining = Math.max(0, sumBills - sumPaid);
-      const dueArrears = Math.max(0, sumActiveDueBills - sumPaid);
+      const activeArrears = Math.max(0, sumActiveDueBills - sumPaid);
 
-      setTotalBills(sumBills);
+      setTotalBills(sumActiveDueBills);
       setTotalPayments(sumPaid);
-      setTotalArrears(totalRemaining);
-      setActiveDueArrears(dueArrears);
+      setTotalArrears(activeArrears);
+      setActiveDueArrears(activeArrears);
 
       let countPaid = 0;
       let countArrears = 0;
@@ -615,9 +616,9 @@ export const DashboardPage: React.FC = () => {
 
         <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs flex items-center justify-between">
           <div>
-            <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Total Tagihan (1 Thn)</p>
+            <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Total Tagihan (s/d Okt)</p>
             <h3 className="text-2xl font-black text-slate-800 mt-1">{formatRupiah(totalBills)}</h3>
-            <p className="text-xs text-slate-500 mt-1">Seluruh item pembiayaan 12 bulan</p>
+            <p className="text-xs text-slate-500 mt-1">Kewajiban aktif berjalan s/d Oktober</p>
           </div>
           <div className="w-12 h-12 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center">
             <Wallet className="w-6 h-6" />
@@ -639,10 +640,10 @@ export const DashboardPage: React.FC = () => {
 
         <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs flex items-center justify-between">
           <div>
-            <p className="text-xs font-bold uppercase tracking-wider text-rose-500">Sisa Tagihan (1 Thn)</p>
+            <p className="text-xs font-bold uppercase tracking-wider text-rose-500">Sisa Tunggakan (s/d Okt)</p>
             <h3 className="text-2xl font-black text-rose-600 mt-1">{formatRupiah(totalArrears)}</h3>
             <p className="text-xs text-slate-500 mt-1">
-              <span className="text-rose-600 font-bold">{formatRupiah(activeDueArrears)}</span> jatuh tempo s/d Okt
+              Bulan mendatang belum dihitung
             </p>
           </div>
           <div className="w-12 h-12 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center">
@@ -893,7 +894,7 @@ export const DashboardPage: React.FC = () => {
               Rekapitulasi Keuangan Per Item (SMP IT & SMA IT)
             </h3>
             <p className="text-xs text-slate-500">
-              Sesuai format acuan sheet DASHBOARD Excel
+              Kewajiban aktif berjalan s/d Oktober (bulan mendatang belum dihitung sebagai tunggakan)
             </p>
           </div>
 
