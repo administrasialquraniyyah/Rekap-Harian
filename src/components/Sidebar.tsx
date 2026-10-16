@@ -10,6 +10,7 @@ import {
   BarChart3,
   Settings,
   GraduationCap,
+  FileSpreadsheet,
   X
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
@@ -45,7 +46,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'students', label: 'Data Siswa', icon: Users },
     { id: 'academic-years', label: 'Tahun Ajaran', icon: Calendar },
     { id: 'bills', label: 'Tagihan Siswa', icon: Receipt },
-    { id: 'payments', label: 'Pembayaran Siswa', icon: CreditCard, highlight: true },
+    { id: 'payments', label: 'Import Pembayaran', icon: FileSpreadsheet, highlight: true },
     { id: 'recap-payments', label: 'Rekap Pembayaran', icon: TableProperties },
     { id: 'cross-year-arrears', label: 'Rekap Tunggakan', icon: AlertTriangle, badge: 'Lintas Tahun' },
     { id: 'reports', label: 'Laporan Keuangan', icon: BarChart3 },

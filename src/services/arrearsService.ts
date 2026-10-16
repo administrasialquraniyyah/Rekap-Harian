@@ -73,6 +73,7 @@ export const arrearsService = {
 
             let st: BillStatus = 'Belum Dibayar';
             if (b.status === 'Bebas') st = 'Bebas';
+            else if (b.status === 'Akan Berlangsung' && paid === 0) st = 'Akan Berlangsung';
             else if (paid >= amt && amt > 0) st = 'Lunas';
             else if (paid > 0) st = 'Belum Lunas';
 
@@ -82,12 +83,12 @@ export const arrearsService = {
               billing_period: b.billing_period,
               amount: amt,
               paid: paid,
-              remaining: st === 'Bebas' ? 0 : rem,
+              remaining: (st === 'Bebas' || st === 'Akan Berlangsung') ? 0 : rem,
               status: st,
             };
           });
 
-          const totalBills = billsDetail.reduce((sum, b) => sum + (b.status === 'Bebas' ? 0 : b.amount), 0);
+          const totalBills = billsDetail.reduce((sum, b) => sum + ((b.status === 'Bebas' || b.status === 'Akan Berlangsung') ? 0 : b.amount), 0);
           const totalPaid = billsDetail.reduce((sum, b) => sum + b.paid, 0);
           const totalRem = billsDetail.reduce((sum, b) => sum + b.remaining, 0);
 

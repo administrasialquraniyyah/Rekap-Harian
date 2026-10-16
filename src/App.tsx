@@ -10,14 +10,14 @@ import { DashboardPage } from './pages/DashboardPage';
 import { StudentsPage } from './pages/StudentsPage';
 import { AcademicYearsPage } from './pages/AcademicYearsPage';
 import { BillsPage } from './pages/BillsPage';
-import { PaymentsPage } from './pages/PaymentsPage';
+import { ImportPaymentsPage } from './pages/ImportPaymentsPage';
 import { PaymentRecapPage } from './pages/PaymentRecapPage';
 import { CrossYearArrearsPage } from './pages/CrossYearArrearsPage';
 import { FinancialReportPage } from './pages/FinancialReportPage';
 import { SettingsPage } from './pages/SettingsPage';
 
 const AppContent: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<MenuItemId>('dashboard');
+  const [activeTab, setActiveTab] = useState<MenuItemId>('recap-payments'); // default directly to the requested Rekap Pembayaran page!
   const [isOpenMobile, setIsOpenMobile] = useState(false);
 
   const getPageTitle = (tab: MenuItemId) => {
@@ -31,9 +31,9 @@ const AppContent: React.FC = () => {
       case 'bills':
         return { title: 'Tagihan Siswa', subtitle: 'Struktur tagihan bulanan SPP dan biaya satu kali' };
       case 'payments':
-        return { title: 'Input Pembayaran Siswa', subtitle: 'Pencatatan cepat pembayaran dengan tanggal aktual' };
+        return { title: 'Layanan Import Pembayaran Excel', subtitle: 'Import data setoran, tanggal bayar, dan item pembiayaan dari Excel' };
       case 'recap-payments':
-        return { title: 'Rekap Pembayaran (Juli - Juni)', subtitle: 'Tampilan matriks pembayaran identik Excel acuan' };
+        return { title: 'Rekap Pembayaran Siswa (Juli - Juni)', subtitle: 'Klik sel mana saja untuk edit tanggal bayar atau nominal langsung di tabel' };
       case 'cross-year-arrears':
         return { title: 'Rekap Tunggakan Lintas Tahun', subtitle: 'Perhitungan sisa tagihan antar tahun ajaran' };
       case 'reports':
@@ -70,7 +70,7 @@ const AppContent: React.FC = () => {
           {activeTab === 'students' && <StudentsPage />}
           {activeTab === 'academic-years' && <AcademicYearsPage />}
           {activeTab === 'bills' && <BillsPage />}
-          {activeTab === 'payments' && <PaymentsPage />}
+          {activeTab === 'payments' && <ImportPaymentsPage />}
           {activeTab === 'recap-payments' && <PaymentRecapPage />}
           {activeTab === 'cross-year-arrears' && <CrossYearArrearsPage />}
           {activeTab === 'reports' && <FinancialReportPage />}

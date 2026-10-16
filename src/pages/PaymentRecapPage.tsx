@@ -9,13 +9,28 @@ import {
   Eye,
   CheckCircle2,
   Clock,
-  AlertCircle
+  AlertCircle,
+  Edit3,
+  X,
+  Save,
+  Check,
+  HelpCircle
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { studentService } from '../services/studentService';
 import { billingService, SPP_MONTHS } from '../services/billingService';
 import { excelService } from '../services/excelService';
-import { Student, Bill, UnitType } from '../types/database';
+import { localStore } from '../services/dataStore';
+import { Student, Bill, UnitType, BillStatus } from '../types/database';
+
+interface SppCellData {
+  status: 'Lunas' | 'Belum Lunas' | 'Belum Dibayar' | 'Bebas' | 'Akan Berlangsung';
+  displayValue: string;
+  paidDate?: string | null;
+  remaining?: number;
+  billId?: string;
+  amount?: number;
+}
 
 interface RecapRow {
   student_id: string;
@@ -25,14 +40,7 @@ interface RecapRow {
   grade: string;
   administrative_status: string;
   spp_nominal: number;
-  // Monthly SPP cell value
-  sppMonths: Record<string, {
-    status: 'Lunas' | 'Belum Lunas' | 'Belum Dibayar' | 'Bebas' | 'Akan Berlangsung';
-    displayValue: string;
-    paidDate?: string | null;
-    remaining?: number;
-  }>;
-  // Non-SPP categories paid
+  sppMonths: Record<string, SppCellData>;
   paid_perlengkapan: number;
   paid_peralatan: number;
   paid_kegiatan: number;
@@ -43,10 +51,13 @@ interface RecapRow {
 }
 
 export const PaymentRecapPage: React.FC = () => {
-  const { selectedAcademicYearId, selectedAcademicYear, showToast, refreshKey } = useApp();
+  const { selectedAcademicYearId, selectedAcademicYear, showToast, refreshKey, triggerRefresh } = useApp();
 
   const [recapData, setRecapData] = useState<RecapRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Active month setting (default to Oktober as in T.A. 2026/2027)
+  const [activeMonthLimit, setActiveMonthLimit] = useState<string>('Oktober');
 
   // Filters
   const [search, setSearch] = useState('');
@@ -54,52 +65,73 @@ export const PaymentRecapPage: React.FC = () => {
   const [gradeFilter, setGradeFilter] = useState<string>('ALL');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
 
+  // Modal In-Cell Edit for SPP Month
+  const [editingSpp, setEditingSpp] = useState<{
+    student_id: string;
+    student_name: string;
+    month: string;
+    spp_nominal: number;
+    current_status: string;
+    current_date: string;
+    paid_amount: string;
+  } | null>(null);
+
+  // Modal In-Cell Edit for Non-SPP Category
+  const [editingNonSpp, setEditingNonSpp] = useState<{
+    student_id: string;
+    student_name: string;
+    category_name: string;
+    current_paid: number;
+    input_amount: string;
+    payment_date: string;
+  } | null>(null);
+
   const loadRecap = async () => {
     if (!selectedAcademicYearId) return;
     setIsLoading(true);
 
     try {
-      // 1. Fetch all students enrolled in this academic year
       const students = await studentService.getAllWithEnrollment({
         academicYearId: selectedAcademicYearId
       });
 
-      // 2. Fetch all bills for this academic year
       const bills = await billingService.getBillsForAcademicYear(selectedAcademicYearId);
 
-      // Group bills by student_id
       const billsByStudent: Record<string, Bill[]> = {};
       bills.forEach((b) => {
         if (!billsByStudent[b.student_id]) billsByStudent[b.student_id] = [];
         billsByStudent[b.student_id].push(b);
       });
 
-      // Build rows
+      const activeMonthIndex = SPP_MONTHS.indexOf(activeMonthLimit);
+
       const rows: RecapRow[] = students.map((s) => {
         const enr = s.current_enrollment;
         const sBills = billsByStudent[s.id] || [];
 
-        // Determine monthly SPP nominal
         const sppBills = sBills.filter((b) => b.category?.name.toLowerCase().includes('spp'));
-        const sppNominal = sppBills.length > 0 ? sppBills[0].amount : 0;
+        const sppNominal = sppBills.length > 0 ? sppBills[0].amount : 1335000;
 
-        // Populate 12 months
         const sppMonthsMap: RecapRow['sppMonths'] = {};
 
-        SPP_MONTHS.forEach((month) => {
+        SPP_MONTHS.forEach((month, mIdx) => {
           const mBill = sppBills.find((b) => b.billing_period?.toLowerCase() === month.toLowerCase());
+          const isUpcoming = mIdx > activeMonthIndex;
+
           if (!mBill) {
             sppMonthsMap[month] = {
-              status: 'Belum Dibayar',
-              displayValue: 'Belum Bayar'
+              status: isUpcoming ? 'Akan Berlangsung' : 'Belum Dibayar',
+              displayValue: isUpcoming ? 'Akan Berlangsung' : 'Belum Bayar',
+              amount: sppNominal,
             };
           } else if (mBill.calculated_status === 'Bebas') {
             sppMonthsMap[month] = {
               status: 'Bebas',
-              displayValue: 'Free'
+              displayValue: 'Free',
+              billId: mBill.id,
+              amount: mBill.amount,
             };
           } else if (mBill.calculated_status === 'Lunas') {
-            // Format payment date as DD/MM/YY
             let dateStr = 'Lunas';
             if (mBill.last_payment_date) {
               const d = new Date(mBill.last_payment_date);
@@ -108,23 +140,29 @@ export const PaymentRecapPage: React.FC = () => {
             sppMonthsMap[month] = {
               status: 'Lunas',
               displayValue: dateStr,
-              paidDate: mBill.last_payment_date
+              paidDate: mBill.last_payment_date,
+              billId: mBill.id,
+              amount: mBill.amount,
             };
           } else if (mBill.calculated_status === 'Belum Lunas') {
             sppMonthsMap[month] = {
               status: 'Belum Lunas',
               displayValue: `Sisa Rp${((mBill.remaining_amount || 0) / 1000).toFixed(0)}k`,
-              remaining: mBill.remaining_amount
+              remaining: mBill.remaining_amount,
+              billId: mBill.id,
+              amount: mBill.amount,
             };
           } else {
+            // Unpaid
             sppMonthsMap[month] = {
-              status: 'Belum Dibayar',
-              displayValue: 'Belum Bayar'
+              status: isUpcoming ? 'Akan Berlangsung' : 'Belum Dibayar',
+              displayValue: isUpcoming ? 'Akan Berlangsung' : 'Belum Bayar',
+              billId: mBill.id,
+              amount: mBill.amount,
             };
           }
         });
 
-        // Non-SPP payments calculation
         const getPaidForCat = (catPattern: string) => {
           const matchBills = sBills.filter((b) => b.category?.name.toLowerCase().includes(catPattern.toLowerCase()));
           return matchBills.reduce((sum, b) => sum + Number(b.total_paid || 0), 0);
@@ -160,7 +198,79 @@ export const PaymentRecapPage: React.FC = () => {
 
   useEffect(() => {
     loadRecap();
-  }, [selectedAcademicYearId, refreshKey]);
+  }, [selectedAcademicYearId, activeMonthLimit, refreshKey]);
+
+  // Handle cell click on SPP Month
+  const handleCellClickSpp = (row: RecapRow, month: string) => {
+    const cell = row.sppMonths[month];
+    const todayStr = new Date().toISOString().split('T')[0];
+
+    setEditingSpp({
+      student_id: row.student_id,
+      student_name: row.student_name,
+      month: month,
+      spp_nominal: cell?.amount || row.spp_nominal,
+      current_status: cell?.status || 'Belum Dibayar',
+      current_date: cell?.paidDate || todayStr,
+      paid_amount: String(cell?.amount || row.spp_nominal),
+    });
+  };
+
+  // Save SPP In-Cell Edit
+  const handleSaveSppEdit = (status: BillStatus) => {
+    if (!editingSpp || !selectedAcademicYearId) return;
+
+    try {
+      localStore.updateSppCell(editingSpp.student_id, selectedAcademicYearId, editingSpp.month, {
+        status: status,
+        paymentDate: editingSpp.current_date,
+        amount: Number(editingSpp.paid_amount || editingSpp.spp_nominal),
+      });
+
+      showToast(`SPP ${editingSpp.month} untuk ${editingSpp.student_name} berhasil diperbarui!`, 'success');
+      setEditingSpp(null);
+      loadRecap();
+      triggerRefresh();
+    } catch (err: any) {
+      showToast('Gagal mengupdate cell: ' + err.message, 'error');
+    }
+  };
+
+  // Handle cell click on Non-SPP (Perlengkapan, Peralatan, Kegiatan, etc.)
+  const handleCellClickNonSpp = (row: RecapRow, categoryName: string, currentVal: number) => {
+    const todayStr = new Date().toISOString().split('T')[0];
+    setEditingNonSpp({
+      student_id: row.student_id,
+      student_name: row.student_name,
+      category_name: categoryName,
+      current_paid: currentVal,
+      input_amount: String(currentVal || ''),
+      payment_date: todayStr,
+    });
+  };
+
+  // Save Non-SPP In-Cell Edit
+  const handleSaveNonSppEdit = () => {
+    if (!editingNonSpp || !selectedAcademicYearId) return;
+
+    try {
+      const nominal = Number(editingNonSpp.input_amount || 0);
+      localStore.updateNonSppCell(
+        editingNonSpp.student_id,
+        selectedAcademicYearId,
+        editingNonSpp.category_name,
+        nominal,
+        editingNonSpp.payment_date
+      );
+
+      showToast(`Pembayaran ${editingNonSpp.category_name} untuk ${editingNonSpp.student_name} berhasil diupdate!`, 'success');
+      setEditingNonSpp(null);
+      loadRecap();
+      triggerRefresh();
+    } catch (err: any) {
+      showToast('Gagal menyimpan: ' + err.message, 'error');
+    }
+  };
 
   // Filter rows
   const filteredRows = recapData.filter((row) => {
@@ -220,15 +330,38 @@ export const PaymentRecapPage: React.FC = () => {
       {/* Top Header */}
       <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h3 className="text-lg font-bold text-slate-800">
-            Rekap Pembayaran Siswa (Juli - Juni)
-          </h3>
-          <p className="text-xs text-slate-500">
-            Tampilan matriks pembayaran identik dengan sheet PEMBAYARAN Excel acuan
+          <div className="flex items-center gap-2">
+            <h3 className="text-lg font-bold text-slate-800">
+              Rekap Pembayaran Siswa (Juli - Juni)
+            </h3>
+            <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-black uppercase tracking-wide">
+              ⚡ Klik Sel Untuk Edit Langsung
+            </span>
+          </div>
+          <p className="text-xs text-slate-500 mt-0.5">
+            Klik sel mana saja untuk mengisi tanggal pembayaran atau nominal, persis seperti mengisi di Excel.
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2.5">
+          {/* Active Month Selector */}
+          <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-300 rounded-xl px-2.5 py-1 text-xs">
+            <Calendar className="w-3.5 h-3.5 text-emerald-700" />
+            <span className="text-slate-600 font-semibold">Bulan Berjalan:</span>
+            <select
+              value={activeMonthLimit}
+              onChange={(e) => setActiveMonthLimit(e.target.value)}
+              className="bg-transparent font-bold text-emerald-900 focus:outline-none cursor-pointer"
+              title="Bulan setelahnya akan berstatus 'Akan Berlangsung' dan tidak dihitung tunggakan"
+            >
+              {SPP_MONTHS.map((m) => (
+                <option key={m} value={m}>
+                  {m}
+                </option>
+              ))}
+            </select>
+          </div>
+
           <button
             onClick={loadRecap}
             disabled={isLoading}
@@ -305,23 +438,29 @@ export const PaymentRecapPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Legend */}
-      <div className="flex flex-wrap items-center gap-4 px-2 text-[11px] font-semibold text-slate-500">
-        <span className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded-md bg-emerald-100 border border-emerald-400"></span>
-          <span>Lunas (Menampilkan Tanggal Transaksi Sebenarnya)</span>
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded-md bg-amber-100 border border-amber-400"></span>
-          <span>Belum Lunas (Bayar Parsial)</span>
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded-md bg-rose-50 border border-rose-300"></span>
-          <span>Belum Bayar</span>
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded-md bg-purple-100 border border-purple-400"></span>
-          <span>Free (Bebas Biaya / Yatim / Beasiswa)</span>
+      {/* Legend & Hint */}
+      <div className="flex flex-wrap items-center justify-between gap-4 px-2 text-[11px] font-semibold text-slate-500">
+        <div className="flex flex-wrap items-center gap-4">
+          <span className="flex items-center gap-1.5">
+            <span className="w-3 h-3 rounded-md bg-emerald-100 border border-emerald-400"></span>
+            <span>Lunas (Tanggal Bayar)</span>
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="w-3 h-3 rounded-md bg-rose-50 border border-rose-300"></span>
+            <span>Belum Bayar (Bulan Berjalan)</span>
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="w-3 h-3 rounded-md bg-slate-100 border border-slate-300"></span>
+            <span>Akan Berlangsung (Bulan Belum Aktif - Bukan Tunggakan)</span>
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="w-3 h-3 rounded-md bg-purple-100 border border-purple-400"></span>
+            <span>Free (Bebas / Yatim)</span>
+          </span>
+        </div>
+
+        <span className="text-emerald-800 font-bold hidden md:inline">
+          💡 Klik pada kotak mana pun untuk mengubah status atau menginput tanggal
         </span>
       </div>
 
@@ -389,45 +528,75 @@ export const PaymentRecapPage: React.FC = () => {
                       Rp{Number(row.spp_nominal).toLocaleString('id-ID')}
                     </td>
 
-                    {/* 12 Months Cells */}
+                    {/* 12 Months Cells - CLICK TO EDIT DIRECTLY */}
                     {SPP_MONTHS.map((month) => {
                       const cell = row.sppMonths[month];
-                      let cellClass = 'bg-rose-50/60 text-rose-700 font-normal';
+                      let cellClass = 'bg-rose-50/70 text-rose-700 font-normal hover:bg-rose-100 hover:ring-2 hover:ring-rose-400';
                       if (cell.status === 'Lunas') {
-                        cellClass = 'bg-emerald-50 text-emerald-800 font-bold';
+                        cellClass = 'bg-emerald-50 text-emerald-800 font-bold hover:bg-emerald-100 hover:ring-2 hover:ring-emerald-400';
                       } else if (cell.status === 'Belum Lunas') {
-                        cellClass = 'bg-amber-50 text-amber-800 font-bold';
+                        cellClass = 'bg-amber-50 text-amber-800 font-bold hover:bg-amber-100 hover:ring-2 hover:ring-amber-400';
                       } else if (cell.status === 'Bebas') {
-                        cellClass = 'bg-purple-50 text-purple-800 font-bold';
+                        cellClass = 'bg-purple-50 text-purple-800 font-bold hover:bg-purple-100 hover:ring-2 hover:ring-purple-400';
+                      } else if (cell.status === 'Akan Berlangsung') {
+                        cellClass = 'bg-slate-50/80 text-slate-400 font-normal italic hover:bg-slate-100 hover:ring-2 hover:ring-slate-300';
                       }
 
                       return (
                         <td
                           key={month}
-                          className={`py-2 px-2 text-center text-[11px] border-l border-slate-100 ${cellClass}`}
+                          onClick={() => handleCellClickSpp(row, month)}
+                          title={`Klik untuk edit pembayaran SP ${month} - ${row.student_name}`}
+                          className={`py-2 px-2 text-center text-[11px] border-l border-slate-100 cursor-pointer transition select-none ${cellClass}`}
                         >
-                          {cell.displayValue}
+                          <div className="flex items-center justify-center gap-1">
+                            <span>{cell.displayValue}</span>
+                          </div>
                         </td>
                       );
                     })}
 
-                    {/* Non-SPP Columns */}
-                    <td className="py-2.5 px-3 text-right font-semibold text-slate-700 border-l border-slate-100">
+                    {/* Non-SPP Columns - CLICK TO EDIT DIRECTLY */}
+                    <td
+                      onClick={() => handleCellClickNonSpp(row, 'Perlengkapan', row.paid_perlengkapan)}
+                      title={`Klik untuk ubah pembayaran Perlengkapan`}
+                      className="py-2.5 px-3 text-right font-semibold text-slate-700 border-l border-slate-100 cursor-pointer hover:bg-emerald-50 hover:ring-2 hover:ring-emerald-400 transition"
+                    >
                       {row.paid_perlengkapan > 0 ? `Rp${row.paid_perlengkapan.toLocaleString('id-ID')}` : '-'}
                     </td>
-                    <td className="py-2.5 px-3 text-right font-semibold text-slate-700">
+                    <td
+                      onClick={() => handleCellClickNonSpp(row, 'Peralatan', row.paid_peralatan)}
+                      title={`Klik untuk ubah pembayaran Peralatan`}
+                      className="py-2.5 px-3 text-right font-semibold text-slate-700 cursor-pointer hover:bg-emerald-50 hover:ring-2 hover:ring-emerald-400 transition"
+                    >
                       {row.paid_peralatan > 0 ? `Rp${row.paid_peralatan.toLocaleString('id-ID')}` : '-'}
                     </td>
-                    <td className="py-2.5 px-3 text-right font-semibold text-slate-700">
+                    <td
+                      onClick={() => handleCellClickNonSpp(row, 'Kegiatan', row.paid_kegiatan)}
+                      title={`Klik untuk ubah pembayaran Kegiatan`}
+                      className="py-2.5 px-3 text-right font-semibold text-slate-700 cursor-pointer hover:bg-emerald-50 hover:ring-2 hover:ring-emerald-400 transition"
+                    >
                       {row.paid_kegiatan > 0 ? `Rp${row.paid_kegiatan.toLocaleString('id-ID')}` : '-'}
                     </td>
-                    <td className="py-2.5 px-3 text-right font-semibold text-slate-700">
+                    <td
+                      onClick={() => handleCellClickNonSpp(row, 'Pembangunan', row.paid_pembangunan)}
+                      title={`Klik untuk ubah pembayaran Pembangunan`}
+                      className="py-2.5 px-3 text-right font-semibold text-slate-700 cursor-pointer hover:bg-emerald-50 hover:ring-2 hover:ring-emerald-400 transition"
+                    >
                       {row.paid_pembangunan > 0 ? `Rp${row.paid_pembangunan.toLocaleString('id-ID')}` : '-'}
                     </td>
-                    <td className="py-2.5 px-3 text-right font-semibold text-slate-700">
+                    <td
+                      onClick={() => handleCellClickNonSpp(row, 'Ujian', row.paid_ujian)}
+                      title={`Klik untuk ubah pembayaran Ujian`}
+                      className="py-2.5 px-3 text-right font-semibold text-slate-700 cursor-pointer hover:bg-emerald-50 hover:ring-2 hover:ring-emerald-400 transition"
+                    >
                       {row.paid_ujian > 0 ? `Rp${row.paid_ujian.toLocaleString('id-ID')}` : '-'}
                     </td>
-                    <td className="py-2.5 px-3 text-right font-semibold text-slate-700">
+                    <td
+                      onClick={() => handleCellClickNonSpp(row, 'Lainnya', row.paid_lainnya)}
+                      title={`Klik untuk ubah pembayaran Lainnya`}
+                      className="py-2.5 px-3 text-right font-semibold text-slate-700 cursor-pointer hover:bg-emerald-50 hover:ring-2 hover:ring-emerald-400 transition"
+                    >
                       {row.paid_lainnya > 0 ? `Rp${row.paid_lainnya.toLocaleString('id-ID')}` : '-'}
                     </td>
                   </tr>
@@ -437,6 +606,174 @@ export const PaymentRecapPage: React.FC = () => {
           </table>
         </div>
       </div>
+
+      {/* MODAL IN-CELL EDIT: SPP MONTH */}
+      {editingSpp && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">
+                  Edit Pembayaran Sel
+                </span>
+                <h4 className="text-base font-bold text-slate-800 mt-1">
+                  {editingSpp.student_name}
+                </h4>
+                <p className="text-xs text-slate-500 font-medium">
+                  Tagihan: <strong>SPP Bulan {editingSpp.month}</strong> (Tarif: Rp{editingSpp.spp_nominal.toLocaleString('id-ID')})
+                </p>
+              </div>
+              <button
+                onClick={() => setEditingSpp(null)}
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="py-4 space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Tanggal Pembayaran (Muncul Pada Sel) *
+                </label>
+                <input
+                  type="date"
+                  value={editingSpp.current_date}
+                  onChange={(e) => setEditingSpp({ ...editingSpp, current_date: e.target.value })}
+                  className="w-full text-xs font-bold px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-700 bg-white"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Nominal Dibayar (Rp)
+                </label>
+                <input
+                  type="number"
+                  value={editingSpp.paid_amount}
+                  onChange={(e) => setEditingSpp({ ...editingSpp, paid_amount: e.target.value })}
+                  placeholder={String(editingSpp.spp_nominal)}
+                  className="w-full text-xs font-bold px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-700 bg-white"
+                />
+                <p className="text-[10px] text-slate-400 mt-1">
+                  Jika sama dengan tarif (Rp{editingSpp.spp_nominal.toLocaleString('id-ID')}), status menjadi Lunas.
+                </p>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="pt-2 border-t border-slate-100 flex flex-col gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleSaveSppEdit('Lunas')}
+                  className="w-full flex items-center justify-center gap-2 py-2.5 bg-emerald-800 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl transition shadow-xs"
+                >
+                  <Check className="w-4 h-4 text-gold-400" />
+                  <span>Simpan Lunas (Tampilkan Tanggal)</span>
+                </button>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleSaveSppEdit('Bebas')}
+                    className="py-2 bg-purple-50 hover:bg-purple-100 text-purple-800 font-bold text-xs rounded-xl border border-purple-200 transition"
+                  >
+                    Tandai Free / Bebas
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleSaveSppEdit('Belum Dibayar')}
+                    className="py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs rounded-xl border border-rose-200 transition"
+                  >
+                    Reset Belum Bayar
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL IN-CELL EDIT: NON-SPP CATEGORY */}
+      {editingNonSpp && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">
+                  Edit Pembayaran Langsung
+                </span>
+                <h4 className="text-base font-bold text-slate-800 mt-1">
+                  {editingNonSpp.student_name}
+                </h4>
+                <p className="text-xs text-slate-500 font-medium">
+                  Item: <strong>{editingNonSpp.category_name}</strong>
+                </p>
+              </div>
+              <button
+                onClick={() => setEditingNonSpp(null)}
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="py-4 space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Nominal Pembayaran Diterima (Rp) *
+                </label>
+                <input
+                  type="number"
+                  value={editingNonSpp.input_amount}
+                  onChange={(e) => setEditingNonSpp({ ...editingNonSpp, input_amount: e.target.value })}
+                  placeholder="Contoh: 2900000"
+                  className="w-full text-sm font-black px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-700 bg-white"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Tanggal Pembayaran
+                </label>
+                <input
+                  type="date"
+                  value={editingNonSpp.payment_date}
+                  onChange={(e) => setEditingNonSpp({ ...editingNonSpp, payment_date: e.target.value })}
+                  className="w-full text-xs font-bold px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-700 bg-white"
+                />
+              </div>
+
+              <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
+                <button
+                  type="button"
+                  onClick={() => setEditingNonSpp({ ...editingNonSpp, input_amount: '0' })}
+                  className="px-3 py-2 text-rose-600 hover:bg-rose-50 text-xs font-semibold rounded-xl transition"
+                >
+                  Reset Rp0
+                </button>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setEditingNonSpp(null)}
+                    className="px-4 py-2 text-slate-600 hover:bg-slate-100 text-xs font-semibold rounded-xl transition"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSaveNonSppEdit}
+                    className="px-5 py-2 bg-emerald-800 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs transition"
+                  >
+                    Simpan Nilai
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
