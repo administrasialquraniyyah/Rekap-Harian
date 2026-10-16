@@ -221,7 +221,8 @@ export const billingService = {
             )
           )
         `)
-        .eq('academic_year_id', academicYearId);
+        .eq('academic_year_id', academicYearId)
+        .range(0, 19999);
 
       if (error) throw error;
 

@@ -104,6 +104,8 @@ export const studentService = {
         query = query.or(`full_name.ilike.${term},nis.ilike.${term},phone.ilike.${term}`);
       }
 
+      query = query.range(0, 4999);
+
       const { data, error } = await query;
       if (error) throw error;
 
