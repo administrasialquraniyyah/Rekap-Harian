@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
-import { SPP_MONTHS } from '../services/billingService';
+import { SPP_MONTHS, isUpcomingSPPMonth } from '../services/billingService';
 import { localStore } from '../services/dataStore';
 import * as XLSX from 'xlsx';
 
@@ -312,26 +312,12 @@ export const DashboardPage: React.FC = () => {
         sppMonthMap[m] = { target: 0, collected: 0 };
       });
 
+      let sumActiveDueBills = 0;
+
       for (const bill of bills || []) {
         const studentUnit = studentUnitMap.get(bill.student_id) || 'SMP IT';
         const billAmount = Number(bill.amount || 0);
         const paidAmount = Number(bill.paidAmount || 0);
-
-        if (bill.status !== 'Bebas') {
-          sumBills += billAmount;
-          sumPaid += paidAmount;
-
-          if (!studentBalanceMap.has(bill.student_id)) {
-            studentBalanceMap.set(bill.student_id, {
-              studentId: bill.student_id,
-              totalBills: 0,
-              totalPaid: 0,
-            });
-          }
-          const sBal = studentBalanceMap.get(bill.student_id)!;
-          sBal.totalBills += billAmount;
-          sBal.totalPaid += paidAmount;
-        }
 
         let catName = bill.catName || 'Lainnya';
         if (catName.includes('Syahriyyah') || catName.includes('SPP')) catName = 'SPP';
@@ -341,6 +327,31 @@ export const DashboardPage: React.FC = () => {
         else if (catName.includes('Pembangunan')) catName = 'Pembangunan';
         else if (catName.includes('Ujian')) catName = 'Ujian';
         else catName = 'Lainnya';
+
+        const isSpp = catName === 'SPP';
+        const isUpcoming = isSpp && isUpcomingSPPMonth(bill.billing_period);
+
+        if (bill.status !== 'Bebas') {
+          sumBills += billAmount;
+          sumPaid += paidAmount;
+
+          if (!isUpcoming || paidAmount > 0) {
+            sumActiveDueBills += billAmount;
+          }
+
+          if (!studentBalanceMap.has(bill.student_id)) {
+            studentBalanceMap.set(bill.student_id, {
+              studentId: bill.student_id,
+              totalBills: 0,
+              totalPaid: 0,
+            });
+          }
+          const sBal = studentBalanceMap.get(bill.student_id)!;
+          if (!isUpcoming || paidAmount > 0) {
+            sBal.totalBills += billAmount;
+            sBal.totalPaid += paidAmount;
+          }
+        }
 
         if (studentUnit === 'SMP IT') {
           if (bill.status !== 'Bebas') catMap[catName].smpTagihan += billAmount;
@@ -360,7 +371,7 @@ export const DashboardPage: React.FC = () => {
 
       setTotalBills(sumBills);
       setTotalPayments(sumPaid);
-      setTotalArrears(Math.max(0, sumBills - sumPaid));
+      setTotalArrears(Math.max(0, sumActiveDueBills - sumPaid));
 
       let countPaid = 0;
       let countArrears = 0;
@@ -588,7 +599,7 @@ export const DashboardPage: React.FC = () => {
             <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Siswa Aktif</p>
             <h3 className="text-2xl font-black text-slate-800 mt-1">{activeStudentsCount}</h3>
             <p className="text-xs text-slate-500 mt-1">
-              <span className="text-emerald-600 font-semibold">{paidStudentsCount} lunas</span> ·{' '}
+              <span className="text-emerald-600 font-semibold">{paidStudentsCount} lunas s/d Okt</span> ·{' '}
               <span className="text-rose-600 font-semibold">{arrearsStudentsCount} menunggak</span>
             </p>
           </div>
@@ -599,9 +610,9 @@ export const DashboardPage: React.FC = () => {
 
         <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs flex items-center justify-between">
           <div>
-            <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Total Tagihan</p>
+            <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Total Tagihan (1 Thn)</p>
             <h3 className="text-2xl font-black text-slate-800 mt-1">{formatRupiah(totalBills)}</h3>
-            <p className="text-xs text-slate-500 mt-1">Seluruh item pembiayaan</p>
+            <p className="text-xs text-slate-500 mt-1">Seluruh item pembiayaan 12 bulan</p>
           </div>
           <div className="w-12 h-12 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center">
             <Wallet className="w-6 h-6" />
@@ -623,9 +634,9 @@ export const DashboardPage: React.FC = () => {
 
         <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs flex items-center justify-between">
           <div>
-            <p className="text-xs font-bold uppercase tracking-wider text-rose-500">Sisa Tagihan / Tunggakan</p>
+            <p className="text-xs font-bold uppercase tracking-wider text-rose-500">Tunggakan Jatuh Tempo</p>
             <h3 className="text-2xl font-black text-rose-600 mt-1">{formatRupiah(totalArrears)}</h3>
-            <p className="text-xs text-rose-500/80 font-medium mt-1">Perlu ditindaklanjuti</p>
+            <p className="text-xs text-rose-500/80 font-medium mt-1">Kewajiban aktif s/d Oktober</p>
           </div>
           <div className="w-12 h-12 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center">
             <AlertCircle className="w-6 h-6" />

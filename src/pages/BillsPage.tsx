@@ -192,12 +192,22 @@ export const BillsPage: React.FC = () => {
             className="w-full py-2 px-3 text-xs font-medium rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-700 bg-white"
           >
             <option value="ALL">Semua Status</option>
-            <option value="Belum Dibayar">Belum Dibayar</option>
+            <option value="Belum Dibayar">Belum Dibayar (Jatuh Tempo)</option>
+            <option value="Akan Berlangsung">Akan Berlangsung (Bulan Belum Berjalan)</option>
             <option value="Belum Lunas">Belum Lunas</option>
             <option value="Lunas">Lunas</option>
             <option value="Bebas">Bebas / Free</option>
           </select>
         </div>
+      </div>
+
+      {/* Info Banner: Active Month vs Upcoming Months */}
+      <div className="bg-emerald-50/70 border border-emerald-200/70 rounded-xl px-4 py-2.5 flex items-center gap-2.5 text-xs text-emerald-950 shadow-2xs">
+        <Calendar className="w-4 h-4 text-emerald-700 shrink-0" />
+        <span>
+          Bulan berjalan saat ini: <strong className="font-bold text-emerald-900">Oktober</strong>.
+          Tagihan SPP bulan mendatang (November s/d Juni) berstatus <em>Akan Berlangsung</em> dan belum jatuh tempo sebagai tunggakan.
+        </span>
       </div>
 
       {/* Bills Table */}
@@ -253,16 +263,30 @@ export const BillsPage: React.FC = () => {
                     <td className="py-3 px-4 text-right font-semibold text-emerald-700">
                       Rp{Number(bill.total_paid || 0).toLocaleString('id-ID')}
                     </td>
-                    <td className="py-3 px-4 text-right font-bold text-rose-600">
-                      Rp{Number(bill.remaining_amount || 0).toLocaleString('id-ID')}
+                    <td className="py-3 px-4 text-right">
+                      {bill.calculated_status === 'Akan Berlangsung' ? (
+                        <span className="text-slate-400 font-medium text-[11px]" title="Tagihan belum jatuh tempo (bulan mendatang)">
+                          - (Belum Berjalan)
+                        </span>
+                      ) : Number(bill.remaining_amount || 0) > 0 ? (
+                        <span className="font-bold text-rose-600">
+                          Rp{Number(bill.remaining_amount).toLocaleString('id-ID')}
+                        </span>
+                      ) : (
+                        <span className="font-semibold text-emerald-600">
+                          Rp0
+                        </span>
+                      )}
                     </td>
                     <td className="py-3 px-4 text-center">
                       <span
-                        className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                        className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
                           bill.calculated_status === 'Lunas' || bill.calculated_status === 'Bebas'
                             ? 'bg-emerald-100 text-emerald-800'
                             : bill.calculated_status === 'Belum Lunas'
                             ? 'bg-amber-100 text-amber-800'
+                            : bill.calculated_status === 'Akan Berlangsung'
+                            ? 'bg-slate-100 text-slate-600 border border-slate-200'
                             : 'bg-rose-100 text-rose-800'
                         }`}
                       >

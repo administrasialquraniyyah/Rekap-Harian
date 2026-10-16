@@ -7,6 +7,24 @@ export const SPP_MONTHS = [
   'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni'
 ];
 
+export function getCurrentActiveSPPMonth(): string {
+  const monthNames = [
+    'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+    'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+  ];
+  const now = new Date();
+  return monthNames[now.getMonth()] || 'Oktober';
+}
+
+export function isUpcomingSPPMonth(billingPeriod: string | null | undefined, activeMonth: string = getCurrentActiveSPPMonth()): boolean {
+  if (!billingPeriod) return false;
+  const periodIndex = SPP_MONTHS.findIndex(m => m.toLowerCase() === billingPeriod.trim().toLowerCase());
+  if (periodIndex === -1) return false;
+  const activeIndex = SPP_MONTHS.findIndex(m => m.toLowerCase() === activeMonth.trim().toLowerCase());
+  if (activeIndex === -1) return false;
+  return periodIndex > activeIndex;
+}
+
 export const billingService = {
   async getCategories(): Promise<BillingCategory[]> {
     if (!isSupabaseConfigured) {
@@ -80,10 +98,15 @@ export const billingService = {
           }
         }
 
+        const catName = cat?.name || '';
+        const isSpp = catName.toLowerCase().includes('spp') || catName.toLowerCase().includes('syahriyyah');
+        const isUpcoming = isSpp && isUpcomingSPPMonth(b.billing_period);
+
         let calculatedStatus: BillStatus = 'Belum Dibayar';
         if (b.status === 'Bebas') calculatedStatus = 'Bebas';
         else if (validPaid >= Number(b.amount) && Number(b.amount) > 0) calculatedStatus = 'Lunas';
         else if (validPaid > 0) calculatedStatus = 'Belum Lunas';
+        else if (isUpcoming) calculatedStatus = 'Akan Berlangsung';
 
         return {
           ...b,
@@ -139,6 +162,10 @@ export const billingService = {
           lastPaymentDate = sorted[0].payment.payment_date;
         }
 
+        const catName = bill.category?.name || '';
+        const isSpp = catName.toLowerCase().includes('spp') || catName.toLowerCase().includes('syahriyyah');
+        const isUpcoming = isSpp && isUpcomingSPPMonth(bill.billing_period);
+
         let calculatedStatus: BillStatus = 'Belum Dibayar';
         if (bill.status === 'Bebas') {
           calculatedStatus = 'Bebas';
@@ -146,6 +173,8 @@ export const billingService = {
           calculatedStatus = 'Lunas';
         } else if (totalPaid > 0) {
           calculatedStatus = 'Belum Lunas';
+        } else if (isUpcoming) {
+          calculatedStatus = 'Akan Berlangsung';
         }
 
         return {
@@ -262,6 +291,10 @@ export const billingService = {
           lastPaymentDate = sorted[0].payment.payment_date;
         }
 
+        const catName = bill.category?.name || '';
+        const isSpp = catName.toLowerCase().includes('spp') || catName.toLowerCase().includes('syahriyyah');
+        const isUpcoming = isSpp && isUpcomingSPPMonth(bill.billing_period);
+
         let calculatedStatus: BillStatus = 'Belum Dibayar';
         if (bill.status === 'Bebas') {
           calculatedStatus = 'Bebas';
@@ -269,6 +302,8 @@ export const billingService = {
           calculatedStatus = 'Lunas';
         } else if (totalPaid > 0) {
           calculatedStatus = 'Belum Lunas';
+        } else if (isUpcoming) {
+          calculatedStatus = 'Akan Berlangsung';
         }
 
         return {

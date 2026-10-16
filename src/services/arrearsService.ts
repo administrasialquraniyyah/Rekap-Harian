@@ -1,6 +1,7 @@
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { StudentCrossYearArrears, StudentYearlyArrears, BillStatus, Student, StudentEnrollment, Bill } from '../types/database';
 import { localStore } from './dataStore';
+import { isUpcomingSPPMonth } from './billingService';
 
 export const arrearsService = {
   async getCrossYearArrears(filters: {
@@ -228,6 +229,11 @@ export const arrearsService = {
         const billAmount = Number(bill.amount || 0);
         const remaining = Math.max(0, billAmount - validPaid);
 
+        const catObj: any = Array.isArray(bill.category) ? bill.category[0] : bill.category;
+        const catName = catObj?.name || 'Tagihan';
+        const isSpp = catName.toLowerCase().includes('spp') || catName.toLowerCase().includes('syahriyyah');
+        const isUpcoming = isSpp && isUpcomingSPPMonth(bill.billing_period);
+
         let calcStatus: BillStatus = 'Belum Dibayar';
         if (bill.status === 'Bebas') {
           calcStatus = 'Bebas';
@@ -235,16 +241,17 @@ export const arrearsService = {
           calcStatus = 'Lunas';
         } else if (validPaid > 0) {
           calcStatus = 'Belum Lunas';
+        } else if (isUpcoming) {
+          calcStatus = 'Akan Berlangsung';
         }
 
-        const catObj: any = Array.isArray(bill.category) ? bill.category[0] : bill.category;
         billsByStudentYear[sId][yId].push({
           bill_id: bill.id,
-          category_name: catObj?.name || 'Tagihan',
+          category_name: catName,
           billing_period: bill.billing_period,
           amount: billAmount,
           paid: validPaid,
-          remaining: calcStatus === 'Bebas' ? 0 : remaining,
+          remaining: (calcStatus === 'Bebas' || calcStatus === 'Akan Berlangsung') ? 0 : remaining,
           status: calcStatus
         });
       }
@@ -276,7 +283,7 @@ export const arrearsService = {
           }
 
           const bList = studentBillsMap[yId] || [];
-          const totalBills = bList.reduce((sum: number, b: any) => sum + (b.status === 'Bebas' ? 0 : b.amount), 0);
+          const totalBills = bList.reduce((sum: number, b: any) => sum + ((b.status === 'Bebas' || b.status === 'Akan Berlangsung') ? 0 : b.amount), 0);
           const totalPaid = bList.reduce((sum: number, b: any) => sum + b.paid, 0);
           const remainingArrears = bList.reduce((sum: number, b: any) => sum + b.remaining, 0);
           const unpaidBills = bList.filter((b: any) => b.remaining > 0);
