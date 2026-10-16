@@ -157,36 +157,61 @@ export const arrearsService = {
         studentQuery = studentQuery.or(`full_name.ilike.${term},nis.ilike.${term}`);
       }
 
+      studentQuery = studentQuery.range(0, 4999);
       const { data: students, error: studentError } = await studentQuery;
       if (studentError) throw studentError;
 
-      let billsQuery = supabase
-        .from('bills')
-        .select(`
-          id,
-          student_id,
-          academic_year_id,
-          category_id,
-          billing_period,
-          amount,
-          status,
-          category:billing_categories(id, name, category_type),
-          academic_year:academic_years(id, name, start_date),
-          allocations:payment_allocations(
-            allocated_amount,
-            payment:payments(status)
-          )
-        `);
+      let allBillsData: any[] = [];
+      let page = 0;
+      const pageSize = 1000;
+      let hasMore = true;
 
-      if (filters.studentId) {
-        billsQuery = billsQuery.eq('student_id', filters.studentId);
-      }
-      if (filters.academicYearId && filters.academicYearId !== 'ALL') {
-        billsQuery = billsQuery.eq('academic_year_id', filters.academicYearId);
+      while (hasMore) {
+        const from = page * pageSize;
+        const to = from + pageSize - 1;
+
+        let bQ = supabase
+          .from('bills')
+          .select(`
+            id,
+            student_id,
+            academic_year_id,
+            category_id,
+            billing_period,
+            amount,
+            status,
+            category:billing_categories(id, name, category_type),
+            academic_year:academic_years(id, name, start_date),
+            allocations:payment_allocations(
+              allocated_amount,
+              payment:payments(status)
+            )
+          `)
+          .range(from, to);
+
+        if (filters.studentId) {
+          bQ = bQ.eq('student_id', filters.studentId);
+        }
+        if (filters.academicYearId && filters.academicYearId !== 'ALL') {
+          bQ = bQ.eq('academic_year_id', filters.academicYearId);
+        }
+
+        const { data: bBatch, error: billsError } = await bQ;
+        if (billsError) throw billsError;
+
+        if (bBatch && bBatch.length > 0) {
+          allBillsData = allBillsData.concat(bBatch);
+          if (bBatch.length < pageSize) {
+            hasMore = false;
+          } else {
+            page++;
+          }
+        } else {
+          hasMore = false;
+        }
       }
 
-      const { data: bills, error: billsError } = await billsQuery;
-      if (billsError) throw billsError;
+      const bills = allBillsData;
 
       const billsByStudentYear: Record<string, Record<string, any[]>> = {};
 

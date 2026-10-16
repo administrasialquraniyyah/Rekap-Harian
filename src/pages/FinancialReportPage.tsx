@@ -75,30 +75,54 @@ export const FinancialReportPage: React.FC = () => {
 
         enrollments = localStore.getEnrollments().filter((e) => e.academic_year_id === selectedAcademicYearId);
       } else {
-        const { data: billsData, error: bErr } = await supabase
-          .from('bills')
-          .select(`
-            id,
-            student_id,
-            category_id,
-            billing_period,
-            amount,
-            status,
-            category:billing_categories(name),
-            allocations:payment_allocations(
-              allocated_amount,
-              payment:payments(status, payment_date)
-            )
-          `)
-          .eq('academic_year_id', selectedAcademicYearId);
+        let allBillsData: any[] = [];
+        let page = 0;
+        const pageSize = 1000;
+        let hasMore = true;
 
-        if (bErr) throw bErr;
-        bills = billsData || [];
+        while (hasMore) {
+          const from = page * pageSize;
+          const to = from + pageSize - 1;
+
+          const { data: bBatch, error: bErr } = await supabase
+            .from('bills')
+            .select(`
+              id,
+              student_id,
+              category_id,
+              billing_period,
+              amount,
+              status,
+              category:billing_categories(name),
+              allocations:payment_allocations(
+                allocated_amount,
+                payment:payments(status, payment_date)
+              )
+            `)
+            .eq('academic_year_id', selectedAcademicYearId)
+            .range(from, to);
+
+          if (bErr) throw bErr;
+
+          if (bBatch && bBatch.length > 0) {
+            allBillsData = allBillsData.concat(bBatch);
+            if (bBatch.length < pageSize) {
+              hasMore = false;
+            } else {
+              page++;
+            }
+          } else {
+            hasMore = false;
+          }
+        }
+
+        bills = allBillsData;
 
         const { data: enrData } = await supabase
           .from('student_enrollments')
           .select('student_id, unit, grade')
-          .eq('academic_year_id', selectedAcademicYearId);
+          .eq('academic_year_id', selectedAcademicYearId)
+          .range(0, 4999);
 
         enrollments = enrData || [];
       }

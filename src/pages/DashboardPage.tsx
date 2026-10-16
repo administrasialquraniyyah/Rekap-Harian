@@ -107,6 +107,7 @@ export const DashboardPage: React.FC = () => {
           .from('student_enrollments')
           .select(`
             id,
+            student_id,
             unit,
             grade,
             student:students(
@@ -116,7 +117,8 @@ export const DashboardPage: React.FC = () => {
               student_status
             )
           `)
-          .eq('academic_year_id', selectedAcademicYearId);
+          .eq('academic_year_id', selectedAcademicYearId)
+          .range(0, 4999);
 
         if (enrErr) throw enrErr;
 
@@ -124,25 +126,48 @@ export const DashboardPage: React.FC = () => {
           (e: any) => e.student && e.student.student_status === 'aktif'
         );
 
-        const { data: billsData, error: billsErr } = await supabase
-          .from('bills')
-          .select(`
-            id,
-            student_id,
-            category_id,
-            billing_period,
-            amount,
-            status,
-            category:billing_categories(name, category_type),
-            allocations:payment_allocations(
-              allocated_amount,
-              payment:payments(status, payment_date)
-            )
-          `)
-          .eq('academic_year_id', selectedAcademicYearId);
+        let allBillsData: any[] = [];
+        let page = 0;
+        const pageSize = 1000;
+        let hasMore = true;
 
-        if (billsErr) throw billsErr;
-        bills = billsData || [];
+        while (hasMore) {
+          const from = page * pageSize;
+          const to = from + pageSize - 1;
+
+          const { data: bBatch, error: billsErr } = await supabase
+            .from('bills')
+            .select(`
+              id,
+              student_id,
+              category_id,
+              billing_period,
+              amount,
+              status,
+              category:billing_categories(name, category_type),
+              allocations:payment_allocations(
+                allocated_amount,
+                payment:payments(status, payment_date)
+              )
+            `)
+            .eq('academic_year_id', selectedAcademicYearId)
+            .range(from, to);
+
+          if (billsErr) throw billsErr;
+
+          if (bBatch && bBatch.length > 0) {
+            allBillsData = allBillsData.concat(bBatch);
+            if (bBatch.length < pageSize) {
+              hasMore = false;
+            } else {
+              page++;
+            }
+          } else {
+            hasMore = false;
+          }
+        }
+
+        bills = allBillsData;
 
         const { data: pmts } = await supabase
           .from('payments')
@@ -165,7 +190,10 @@ export const DashboardPage: React.FC = () => {
       setActiveStudentsCount(activeEnr.length);
 
       const studentUnitMap = new Map<string, string>();
-      activeEnr.forEach((e: any) => studentUnitMap.set(e.student_id || e.student?.id, e.unit));
+      activeEnr.forEach((e: any) => {
+        if (e.student_id) studentUnitMap.set(e.student_id, e.unit);
+        if (e.student?.id) studentUnitMap.set(e.student.id, e.unit);
+      });
 
       let sumBills = 0;
       let sumPaid = 0;
@@ -218,7 +246,12 @@ export const DashboardPage: React.FC = () => {
         const catObj: any = Array.isArray(bill.category) ? bill.category[0] : bill.category;
         let catName = catObj?.name || 'Lainnya';
         if (catName.includes('Syahriyyah') || catName.includes('SPP')) catName = 'SPP';
-        else if (!catMap[catName]) catName = 'Lainnya';
+        else if (catName.includes('Perlengkapan')) catName = 'Perlengkapan';
+        else if (catName.includes('Peralatan')) catName = 'Peralatan';
+        else if (catName.includes('Kegiatan')) catName = 'Kegiatan';
+        else if (catName.includes('Pembangunan')) catName = 'Pembangunan';
+        else if (catName.includes('Ujian')) catName = 'Ujian';
+        else catName = 'Lainnya';
 
         if (studentUnit === 'SMP IT') {
           if (bill.status !== 'Bebas') catMap[catName].smpTagihan += billAmount;
