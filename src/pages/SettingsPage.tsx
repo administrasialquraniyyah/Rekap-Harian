@@ -56,6 +56,19 @@ export const SettingsPage: React.FC = () => {
     billingService.getCategories().then(setCategories).catch(console.error);
   }, [refreshKey]);
 
+  // Prevent accidental refresh or tab close while import is running
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isImporting) {
+        e.preventDefault();
+        e.returnValue = 'Proses import data sedang berlangsung. Jika Anda memuat ulang atau menutup halaman ini, proses akan terhenti. Yakin ingin keluar?';
+        return e.returnValue;
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [isImporting]);
+
   // Handle file selection
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -418,16 +431,27 @@ export const SettingsPage: React.FC = () => {
 
             {/* Importing Progress Bar */}
             {isImporting && (
-              <div className="p-6 bg-slate-50 rounded-2xl border border-slate-200 space-y-3">
-                <div className="flex items-center justify-between text-xs font-bold text-slate-700">
-                  <span>Menyimpan ke Supabase...</span>
-                  <span>{importProgress.processed} / {importProgress.total} Siswa</span>
+              <div className="p-6 bg-amber-50/70 rounded-2xl border border-amber-300 space-y-3 shadow-xs">
+                <div className="flex items-center justify-between text-xs font-bold text-slate-800">
+                  <span className="flex items-center gap-2">
+                    <RefreshCw className="w-4 h-4 text-emerald-700 animate-spin" />
+                    <span>Sedang Menyimpan ke Supabase...</span>
+                  </span>
+                  <span className="text-emerald-900 bg-emerald-100 px-2.5 py-0.5 rounded-full font-mono">
+                    {importProgress.processed} / {importProgress.total} Siswa ({Math.round((importProgress.processed / (importProgress.total || 1)) * 100)}%)
+                  </span>
                 </div>
-                <div className="w-full h-3 bg-slate-200 rounded-full overflow-hidden">
+                <div className="w-full h-3 bg-slate-200/80 rounded-full overflow-hidden">
                   <div
                     className="h-full bg-emerald-600 transition-all duration-300"
                     style={{ width: `${(importProgress.processed / (importProgress.total || 1)) * 100}%` }}
                   />
+                </div>
+                <div className="flex items-center gap-2 text-[11px] text-amber-800 font-semibold bg-amber-100/60 p-2.5 rounded-xl border border-amber-200">
+                  <AlertCircle className="w-4 h-4 shrink-0 text-amber-700" />
+                  <span>
+                    <strong>PENTING:</strong> Mohon jangan menutup tab atau me-refresh (F5) halaman browser ini hingga proses mencapai 100%.
+                  </span>
                 </div>
               </div>
             )}
