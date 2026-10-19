@@ -325,5 +325,34 @@ export const studentService = {
 
     if (error) throw error;
     return data;
+  },
+
+  async delete(id: string): Promise<void> {
+    if (!isSupabaseConfigured) {
+      localStore.deleteStudent(id);
+      return;
+    }
+
+    const { error } = await supabase
+      .from('students')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+  },
+
+  async setStudentStatus(id: string, status: StudentStatus): Promise<void> {
+    if (!isSupabaseConfigured) {
+      const student = localStore.getStudents().find(s => s.id === id);
+      if (student) student.student_status = status;
+      return;
+    }
+
+    const { error } = await supabase
+      .from('students')
+      .update({ student_status: status, updated_at: new Date().toISOString() })
+      .eq('id', id);
+
+    if (error) throw error;
   }
 };

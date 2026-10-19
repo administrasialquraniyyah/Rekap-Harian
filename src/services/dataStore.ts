@@ -133,6 +133,20 @@ export const localStore = {
     saveState(currentState);
   },
 
+  deleteBill(id: string) {
+    currentState.bills = currentState.bills.filter((b) => b.id !== id);
+    currentState.payment_allocations = currentState.payment_allocations.filter((a) => a.bill_id !== id);
+    saveState(currentState);
+  },
+
+  deleteStudent(id: string) {
+    currentState.students = currentState.students.filter((s) => s.id !== id);
+    currentState.enrollments = currentState.enrollments.filter((e) => e.student_id !== id);
+    currentState.bills = currentState.bills.filter((b) => b.student_id !== id);
+    currentState.payments = currentState.payments.filter((p) => p.student_id !== id);
+    saveState(currentState);
+  },
+
   getPayments(): Payment[] {
     return currentState.payments;
   },

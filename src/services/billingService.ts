@@ -369,5 +369,187 @@ export const billingService = {
 
     const { error } = await supabase.from('bills').insert(bills);
     if (error) throw error;
+  },
+
+  async updateBill(
+    id: string,
+    updates: {
+      amount?: number;
+      billing_period?: string | null;
+      due_date?: string | null;
+      description?: string | null;
+      status?: BillStatus;
+    }
+  ): Promise<Bill> {
+    if (!isSupabaseConfigured) {
+      const existing = localStore.getBills().find((b) => b.id === id);
+      if (!existing) throw new Error('Tagihan tidak ditemukan');
+      const updated = { ...existing, ...updates, updated_at: new Date().toISOString() };
+      localStore.saveBills([updated]);
+      return updated;
+    }
+
+    const { data, error } = await supabase
+      .from('bills')
+      .update({ ...updates, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  },
+
+  async deleteBill(id: string): Promise<void> {
+    if (!isSupabaseConfigured) {
+      localStore.deleteBill(id);
+      return;
+    }
+
+    const { error } = await supabase
+      .from('bills')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+  },
+
+  async reviseStudentSPP(
+    studentId: string,
+    academicYearId: string,
+    newAmount: number,
+    fromMonth: string = 'Juli'
+  ): Promise<{ updatedCount: number }> {
+    const fromIndex = SPP_MONTHS.findIndex(m => m.toLowerCase() === fromMonth.toLowerCase());
+    const validMonths = fromIndex === -1 ? SPP_MONTHS : SPP_MONTHS.slice(fromIndex);
+
+    if (!isSupabaseConfigured) {
+      const bills = localStore.getBills().filter(b => 
+        b.student_id === studentId &&
+        b.academic_year_id === academicYearId &&
+        b.billing_period &&
+        validMonths.includes(b.billing_period) &&
+        b.status !== 'Lunas'
+      );
+      bills.forEach(b => {
+        b.amount = newAmount;
+        b.updated_at = new Date().toISOString();
+      });
+      localStore.saveBills(bills);
+      return { updatedCount: bills.length };
+    }
+
+    const cats = await this.getCategories();
+    const sppCat = cats.find(c => c.name.toLowerCase().includes('spp')) || cats[0];
+    if (!sppCat) throw new Error('Kategori SPP tidak ditemukan');
+
+    const { data: billsToUpdate, error: fetchErr } = await supabase
+      .from('bills')
+      .select('id')
+      .eq('student_id', studentId)
+      .eq('academic_year_id', academicYearId)
+      .eq('category_id', sppCat.id)
+      .in('billing_period', validMonths)
+      .neq('status', 'Lunas');
+
+    if (fetchErr) throw fetchErr;
+    if (!billsToUpdate || billsToUpdate.length === 0) return { updatedCount: 0 };
+
+    const ids = billsToUpdate.map(b => b.id);
+    const { error: updateErr } = await supabase
+      .from('bills')
+      .update({ amount: newAmount, updated_at: new Date().toISOString() })
+      .in('id', ids);
+
+    if (updateErr) throw updateErr;
+    return { updatedCount: ids.length };
+  },
+
+  async handleStudentDropout(
+    studentId: string,
+    academicYearId: string,
+    effectiveMonth: string,
+    action: 'bebas' | 'delete' = 'bebas',
+    newStudentStatus: 'nonaktif' | 'pindah' = 'nonaktif'
+  ): Promise<{ affectedBillsCount: number }> {
+    const fromIndex = SPP_MONTHS.findIndex(m => m.toLowerCase() === effectiveMonth.toLowerCase());
+    const futureMonths = fromIndex === -1 ? [] : SPP_MONTHS.slice(fromIndex);
+
+    if (!isSupabaseConfigured) {
+      const student = localStore.getStudents().find(s => s.id === studentId);
+      if (student) {
+        student.student_status = newStudentStatus;
+      }
+      const targetBills = localStore.getBills().filter(b => 
+        b.student_id === studentId &&
+        b.academic_year_id === academicYearId &&
+        b.billing_period &&
+        futureMonths.includes(b.billing_period) &&
+        b.status !== 'Lunas'
+      );
+
+      if (action === 'delete') {
+        targetBills.forEach(b => localStore.deleteBill(b.id));
+      } else {
+        targetBills.forEach(b => {
+          b.status = 'Bebas';
+          b.description = `Dibebaskan (Santri Berhenti per ${effectiveMonth})`;
+          b.updated_at = new Date().toISOString();
+        });
+        localStore.saveBills(targetBills);
+      }
+      return { affectedBillsCount: targetBills.length };
+    }
+
+    // 1. Update student status in students table
+    await supabase.from('students').update({
+      student_status: newStudentStatus,
+      updated_at: new Date().toISOString()
+    }).eq('id', studentId);
+
+    // 2. Add note to enrollment
+    await supabase.from('student_enrollments').update({
+      notes: `Berhenti/Pindah sejak ${effectiveMonth}`,
+      updated_at: new Date().toISOString()
+    }).eq('student_id', studentId).eq('academic_year_id', academicYearId);
+
+    // 3. Find future unpaid monthly SPP bills
+    const cats = await this.getCategories();
+    const sppCat = cats.find(c => c.name.toLowerCase().includes('spp')) || cats[0];
+    if (!sppCat) return { affectedBillsCount: 0 };
+
+    const { data: targetBills, error: bErr } = await supabase
+      .from('bills')
+      .select('id, status')
+      .eq('student_id', studentId)
+      .eq('academic_year_id', academicYearId)
+      .eq('category_id', sppCat.id)
+      .in('billing_period', futureMonths)
+      .neq('status', 'Lunas');
+
+    if (bErr) throw bErr;
+    if (!targetBills || targetBills.length === 0) return { affectedBillsCount: 0 };
+
+    const billIds = targetBills.map(b => b.id);
+
+    if (action === 'delete') {
+      const { error: delErr } = await supabase
+        .from('bills')
+        .delete()
+        .in('id', billIds);
+      if (delErr) throw delErr;
+    } else {
+      const { error: updErr } = await supabase
+        .from('bills')
+        .update({
+          status: 'Bebas',
+          description: `Dibebaskan (Santri Berhenti per ${effectiveMonth})`,
+          updated_at: new Date().toISOString()
+        })
+        .in('id', billIds);
+      if (updErr) throw updErr;
+    }
+
+    return { affectedBillsCount: billIds.length };
   }
 };

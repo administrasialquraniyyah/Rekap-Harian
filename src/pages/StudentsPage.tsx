@@ -13,7 +13,8 @@ import {
   X,
   FileSpreadsheet,
   Download,
-  AlertCircle
+  AlertCircle,
+  UserX
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { studentService, StudentFilter } from '../services/studentService';
@@ -49,6 +50,13 @@ export const StudentsPage: React.FC = () => {
     spp_nominal: '1335000',
     notes: '',
   });
+
+  // Modal Santri Berhenti / Nonaktif
+  const [dropoutStudent, setDropoutStudent] = useState<Student | null>(null);
+  const [dropoutMonth, setDropoutMonth] = useState('November');
+  const [dropoutStatus, setDropoutStatus] = useState<'nonaktif' | 'pindah'>('nonaktif');
+  const [dropoutAction, setDropoutAction] = useState<'bebas' | 'delete'>('bebas');
+  const [isDropoutSubmitting, setIsDropoutSubmitting] = useState(false);
 
   // Modal Student Detail / Profile
   const [detailStudent, setDetailStudent] = useState<Student | null>(null);
@@ -228,6 +236,72 @@ export const StudentsPage: React.FC = () => {
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Data Siswa');
     XLSX.writeFile(workbook, `Data_Siswa_${selectedAcademicYear?.name.replace('/', '-') || 'Export'}.xlsx`);
     showToast('Data siswa berhasil diexport ke Excel', 'success');
+  };
+
+  const SPP_MONTHS = [
+    'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
+    'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni'
+  ];
+
+  const handleDeleteStudent = async (student: Student) => {
+    if (
+      !window.confirm(
+        `PERINGATAN: Apakah Anda yakin ingin menghapus data siswa "${student.full_name}" (NIS: ${student.nis || '-'}) secara permanen?\n\nSemua riwayat kelas, tagihan, dan pembayaran siswa ini akan ikut terhapus dari sistem.`
+      )
+    ) {
+      return;
+    }
+
+    try {
+      await studentService.delete(student.id);
+      showToast(`Data siswa "${student.full_name}" berhasil dihapus`, 'success');
+      loadStudents();
+    } catch (err: any) {
+      showToast('Gagal menghapus data siswa: ' + err.message, 'error');
+    }
+  };
+
+  const handleOpenDropout = (student: Student) => {
+    setDropoutStudent(student);
+    setDropoutMonth('November');
+    setDropoutStatus(student.student_status === 'aktif' ? 'nonaktif' : (student.student_status as any));
+    setDropoutAction('bebas');
+  };
+
+  const handleApplyDropout = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!dropoutStudent || !selectedAcademicYearId) {
+      showToast('Pilih tahun ajaran aktif terlebih dahulu', 'error');
+      return;
+    }
+
+    setIsDropoutSubmitting(true);
+    try {
+      const res = await billingService.handleStudentDropout(
+        dropoutStudent.id,
+        selectedAcademicYearId,
+        dropoutMonth,
+        dropoutAction,
+        dropoutStatus
+      );
+
+      const actionMsg =
+        dropoutAction === 'delete'
+          ? 'dihapus'
+          : 'dibebaskan (tidak tercatat sebagai tunggakan)';
+
+      showToast(
+        `Santri ${dropoutStudent.full_name} diatur menjadi ${dropoutStatus}. Sebanyak ${res.affectedBillsCount} tagihan mendatang berhasil ${actionMsg}.`,
+        'success'
+      );
+
+      setDropoutStudent(null);
+      loadStudents();
+    } catch (err: any) {
+      showToast('Gagal memproses santri berhenti: ' + err.message, 'error');
+    } finally {
+      setIsDropoutSubmitting(false);
+    }
   };
 
   return (
@@ -423,10 +497,24 @@ export const StudentsPage: React.FC = () => {
                           </button>
                           <button
                             onClick={() => handleOpenEdit(student)}
-                            title="Edit Siswa"
+                            title="Edit Data Siswa"
                             className="p-1.5 rounded-lg text-slate-500 hover:text-blue-800 hover:bg-blue-50 transition"
                           >
                             <Edit2 className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleOpenDropout(student)}
+                            title="Atur Santri Berhenti / Nonaktif"
+                            className="p-1.5 rounded-lg text-slate-500 hover:text-amber-800 hover:bg-amber-50 transition"
+                          >
+                            <UserX className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteStudent(student)}
+                            title="Hapus Siswa Permanen"
+                            className="p-1.5 rounded-lg text-slate-500 hover:text-rose-700 hover:bg-rose-50 transition"
+                          >
+                            <Trash2 className="w-4 h-4" />
                           </button>
                         </div>
                       </td>
@@ -743,6 +831,136 @@ export const StudentsPage: React.FC = () => {
                 Tutup
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Santri Berhenti / Nonaktif */}
+      {dropoutStudent && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-700 flex items-center justify-center">
+                  <UserX className="w-4 h-4" />
+                </div>
+                <h4 className="text-base font-bold text-slate-800">
+                  Atur Santri Berhenti / Pindah
+                </h4>
+              </div>
+              <button
+                onClick={() => setDropoutStudent(null)}
+                className="text-slate-400 hover:text-slate-600 transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleApplyDropout} className="space-y-4">
+              <div className="p-3 bg-amber-50/60 border border-amber-200/80 rounded-xl">
+                <p className="text-xs font-bold text-amber-900">
+                  {dropoutStudent.full_name}
+                </p>
+                <p className="text-[11px] text-amber-700">
+                  NIS: {dropoutStudent.nis || '-'} • Status Saat Ini:{' '}
+                  <span className="font-semibold uppercase">{dropoutStudent.student_status}</span>
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Ubah Status Siswa Menjadi
+                </label>
+                <select
+                  value={dropoutStatus}
+                  onChange={(e) => setDropoutStatus(e.target.value as any)}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                >
+                  <option value="nonaktif">Non-Aktif (Berhenti / Drop Out)</option>
+                  <option value="pindah">Pindah Sekolah</option>
+                  <option value="lulus">Lulus</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Berlaku Mulai Bulan Tagihan
+                </label>
+                <select
+                  value={dropoutMonth}
+                  onChange={(e) => setDropoutMonth(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                >
+                  {SPP_MONTHS.map((m) => (
+                    <option key={m} value={m}>
+                      Mulai Bulan {m}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-[10px] text-slate-400 mt-1">
+                  Bulan {dropoutMonth} sampai bulan berikutnya di tahun ajaran ini akan disesuaikan.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Tindakan Terhadap Tagihan Mendatang
+                </label>
+                <div className="space-y-2">
+                  <label className="flex items-start gap-2 p-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="dropoutAction"
+                      value="bebas"
+                      checked={dropoutAction === 'bebas'}
+                      onChange={() => setDropoutAction('bebas')}
+                      className="mt-0.5 text-amber-600 focus:ring-amber-500"
+                    />
+                    <div className="text-xs">
+                      <p className="font-semibold text-slate-800">Bebaskan Tagihan (Rekomendasi)</p>
+                      <p className="text-[11px] text-slate-500">
+                        Status tagihan diubah menjadi &ldquo;Bebas&rdquo; sehingga sisa tunggakan menjadi Rp 0 dan tidak tertagih lagi.
+                      </p>
+                    </div>
+                  </label>
+
+                  <label className="flex items-start gap-2 p-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="dropoutAction"
+                      value="delete"
+                      checked={dropoutAction === 'delete'}
+                      onChange={() => setDropoutAction('delete')}
+                      className="mt-0.5 text-rose-600 focus:ring-rose-500"
+                    />
+                    <div className="text-xs">
+                      <p className="font-semibold text-slate-800">Hapus Baris Tagihan Mendatang</p>
+                      <p className="text-[11px] text-slate-500">
+                        Menghapus data baris tagihan yang belum dibayar mulai bulan tersebut.
+                      </p>
+                    </div>
+                  </label>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setDropoutStudent(null)}
+                  disabled={isDropoutSubmitting}
+                  className="px-4 py-2 border border-slate-200 text-slate-600 text-xs font-semibold rounded-xl hover:bg-slate-50 transition"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  disabled={isDropoutSubmitting}
+                  className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-xl shadow-xs transition disabled:opacity-50"
+                >
+                  {isDropoutSubmitting ? 'Memproses...' : 'Simpan & Terapkan'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

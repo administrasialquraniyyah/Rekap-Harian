@@ -11,7 +11,14 @@ import {
   Calendar,
   Layers,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Edit2,
+  Trash2,
+  Sliders,
+  UserX,
+  UserMinus,
+  CheckCircle2,
+  Info
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { billingService, SPP_MONTHS } from '../services/billingService';
@@ -45,6 +52,31 @@ export const BillsPage: React.FC = () => {
     due_date: '',
     description: '',
   });
+
+  // Modal Edit Single Bill
+  const [editingBill, setEditingBill] = useState<Bill | null>(null);
+  const [editFormData, setEditFormData] = useState({
+    amount: '',
+    billing_period: '',
+    due_date: '',
+    status: 'Belum Dibayar' as BillStatus,
+    description: '',
+  });
+
+  // Modal Revisi Massal Tarif / Santri Berhenti
+  const [isRevisionModalOpen, setIsRevisionModalOpen] = useState(false);
+  const [revisionTab, setRevisionTab] = useState<'revise_spp' | 'dropout'>('revise_spp');
+  
+  // State Revisi SPP
+  const [revStudentId, setRevStudentId] = useState('');
+  const [revAmount, setRevAmount] = useState('');
+  const [revFromMonth, setRevFromMonth] = useState('November');
+
+  // State Santri Berhenti
+  const [dropoutStudentId, setDropoutStudentId] = useState('');
+  const [dropoutMonth, setDropoutMonth] = useState('November');
+  const [dropoutAction, setDropoutAction] = useState<'bebas' | 'delete'>('bebas');
+  const [dropoutStatus, setDropoutStatus] = useState<'nonaktif' | 'pindah'>('nonaktif');
 
   const loadData = async () => {
     if (!selectedAcademicYearId) return;
@@ -123,6 +155,122 @@ export const BillsPage: React.FC = () => {
     }
   };
 
+  const handleOpenEditBill = (bill: Bill) => {
+    setEditingBill(bill);
+    setEditFormData({
+      amount: String(bill.amount || 0),
+      billing_period: bill.billing_period || '',
+      due_date: bill.due_date ? String(bill.due_date).split('T')[0] : '',
+      status: (bill.status as BillStatus) || 'Belum Dibayar',
+      description: bill.description || '',
+    });
+  };
+
+  const handleUpdateBill = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingBill) return;
+
+    try {
+      await billingService.updateBill(editingBill.id, {
+        amount: Number(editFormData.amount || 0),
+        billing_period: editFormData.billing_period.trim() || null,
+        due_date: editFormData.due_date || null,
+        status: editFormData.status,
+        description: editFormData.description.trim() || null,
+      });
+
+      showToast('Tagihan berhasil diperbarui', 'success');
+      setEditingBill(null);
+      loadData();
+    } catch (err: any) {
+      showToast('Gagal memperbarui tagihan: ' + err.message, 'error');
+    }
+  };
+
+  const handleDeleteBill = async (bill: Bill) => {
+    const studentName = bill.student?.full_name || 'siswa ini';
+    const catName = bill.category?.name || 'Tagihan';
+    const period = bill.billing_period ? `(${bill.billing_period})` : '';
+
+    if (!window.confirm(`Yakin ingin menghapus tagihan ${catName} ${period} untuk ${studentName}?`)) {
+      return;
+    }
+
+    try {
+      await billingService.deleteBill(bill.id);
+      showToast(`Tagihan ${catName} berhasil dihapus`, 'success');
+      loadData();
+    } catch (err: any) {
+      showToast('Gagal menghapus tagihan: ' + err.message, 'error');
+    }
+  };
+
+  const handleOpenRevisionModal = () => {
+    setRevStudentId(students.length > 0 ? students[0].id : '');
+    setRevAmount('');
+    setRevFromMonth('November');
+
+    setDropoutStudentId(students.length > 0 ? students[0].id : '');
+    setDropoutMonth('November');
+    setDropoutAction('bebas');
+    setDropoutStatus('nonaktif');
+
+    setIsRevisionModalOpen(true);
+  };
+
+  const handleApplyRevisionSPP = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!revStudentId || !selectedAcademicYearId) {
+      showToast('Pilih santri terlebih dahulu', 'error');
+      return;
+    }
+
+    try {
+      const res = await billingService.reviseStudentSPP(
+        revStudentId,
+        selectedAcademicYearId,
+        Number(revAmount || 0),
+        revFromMonth
+      );
+
+      showToast(`Berhasil merevisi tarif SPP! ${res.updatedCount} tagihan mulai bulan ${revFromMonth} telah diubah.`, 'success');
+      setIsRevisionModalOpen(false);
+      loadData();
+    } catch (err: any) {
+      showToast('Gagal merevisi tarif SPP: ' + err.message, 'error');
+    }
+  };
+
+  const handleApplyDropout = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!dropoutStudentId || !selectedAcademicYearId) {
+      showToast('Pilih santri terlebih dahulu', 'error');
+      return;
+    }
+
+    const std = students.find(s => s.id === dropoutStudentId);
+    const actionText = dropoutAction === 'delete' ? 'menghapus tagihan' : 'membebaskan tagihan (Rp 0)';
+    if (!window.confirm(`Yakin ingin memproses santri ${std?.full_name || ''} sebagai ${dropoutStatus}? Tindakan ini akan ${actionText} mulai bulan ${dropoutMonth} ke depan.`)) {
+      return;
+    }
+
+    try {
+      const res = await billingService.handleStudentDropout(
+        dropoutStudentId,
+        selectedAcademicYearId,
+        dropoutMonth,
+        dropoutAction,
+        dropoutStatus
+      );
+
+      showToast(`Santri berhasil diatur menjadi ${dropoutStatus}. Sebanyak ${res.affectedBillsCount} tagihan mendatang berhasil ${dropoutAction === 'delete' ? 'dihapus' : 'dibebaskan'}.`, 'success');
+      setIsRevisionModalOpen(false);
+      loadData();
+    } catch (err: any) {
+      showToast('Gagal memproses santri berhenti: ' + err.message, 'error');
+    }
+  };
+
   // Filter bills
   const filteredBills = bills.filter((b) => {
     const studentName = b.student?.full_name?.toLowerCase() || '';
@@ -158,13 +306,23 @@ export const BillsPage: React.FC = () => {
           </p>
         </div>
 
-        <button
-          onClick={handleOpenAdd}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-800 hover:bg-emerald-700 text-white text-xs font-semibold transition shadow-sm"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Buat Tagihan Baru</span>
-        </button>
+        <div className="flex flex-wrap items-center gap-2.5">
+          <button
+            onClick={handleOpenRevisionModal}
+            className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 text-xs font-bold transition shadow-2xs"
+          >
+            <Sliders className="w-4 h-4 text-amber-700" />
+            <span>Revisi Tarif / Santri Berhenti</span>
+          </button>
+
+          <button
+            onClick={handleOpenAdd}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-800 hover:bg-emerald-700 text-white text-xs font-semibold transition shadow-sm"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Buat Tagihan Baru</span>
+          </button>
+        </div>
       </div>
 
       {/* Filter bar */}
@@ -261,18 +419,19 @@ export const BillsPage: React.FC = () => {
                 <th className="py-3.5 px-4 text-right">Sudah Dibayar</th>
                 <th className="py-3.5 px-4 text-right">Sisa Tagihan</th>
                 <th className="py-3.5 px-4 text-center">Status</th>
+                <th className="py-3.5 px-4 text-center w-24">Aksi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {isLoading ? (
                 <tr>
-                  <td colSpan={8} className="py-12 text-center text-slate-400">
+                  <td colSpan={9} className="py-12 text-center text-slate-400">
                     Memuat tagihan...
                   </td>
                 </tr>
               ) : filteredBills.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-12 text-center text-slate-400">
+                  <td colSpan={9} className="py-12 text-center text-slate-400">
                     Tidak ada tagihan yang ditemukan.
                   </td>
                 </tr>
@@ -329,6 +488,24 @@ export const BillsPage: React.FC = () => {
                       >
                         {bill.calculated_status}
                       </span>
+                    </td>
+                    <td className="py-3 px-4 text-center">
+                      <div className="flex items-center justify-center gap-1.5">
+                        <button
+                          onClick={() => handleOpenEditBill(bill)}
+                          title="Revisi / Ubah Tagihan"
+                          className="p-1.5 rounded-lg text-slate-500 hover:text-emerald-800 hover:bg-emerald-50 transition"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteBill(bill)}
+                          title="Hapus Tagihan"
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -526,6 +703,364 @@ export const BillsPage: React.FC = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Edit Single Bill */}
+      {editingBill && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+              <div>
+                <h4 className="text-base font-bold text-slate-800">
+                  Revisi / Ubah Tagihan
+                </h4>
+                <p className="text-xs text-slate-500">
+                  {editingBill.student?.full_name} · {editingBill.category?.name}
+                </p>
+              </div>
+              <button
+                onClick={() => setEditingBill(null)}
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleUpdateBill} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Nominal Tagihan (Rp) *
+                </label>
+                <input
+                  type="number"
+                  required
+                  min="0"
+                  value={editFormData.amount}
+                  onChange={(e) => setEditFormData({ ...editFormData, amount: e.target.value })}
+                  className="w-full text-xs font-bold px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-700"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Periode / Bulan
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Contoh: Agustus"
+                    value={editFormData.billing_period}
+                    onChange={(e) => setEditFormData({ ...editFormData, billing_period: e.target.value })}
+                    className="w-full text-xs font-medium px-3 py-2 rounded-xl border border-slate-300"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Status Tagihan
+                  </label>
+                  <select
+                    value={editFormData.status}
+                    onChange={(e) => setEditFormData({ ...editFormData, status: e.target.value as BillStatus })}
+                    className="w-full text-xs font-medium px-3 py-2 rounded-xl border border-slate-300 bg-white"
+                  >
+                    <option value="Belum Dibayar">Belum Dibayar</option>
+                    <option value="Belum Lunas">Belum Lunas</option>
+                    <option value="Lunas">Lunas</option>
+                    <option value="Bebas">Bebas (Gratis / Tidak Tertagih)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Tanggal Jatuh Tempo (Opsional)
+                </label>
+                <input
+                  type="date"
+                  value={editFormData.due_date}
+                  onChange={(e) => setEditFormData({ ...editFormData, due_date: e.target.value })}
+                  className="w-full text-xs font-medium px-3 py-2 rounded-xl border border-slate-300"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Keterangan Revisi
+                </label>
+                <input
+                  type="text"
+                  placeholder="Contoh: Keringanan / Penyesuaian tengah tahun"
+                  value={editFormData.description}
+                  onChange={(e) => setEditFormData({ ...editFormData, description: e.target.value })}
+                  className="w-full text-xs font-medium px-3 py-2 rounded-xl border border-slate-300"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setEditingBill(null)}
+                  className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 text-xs font-bold text-white bg-emerald-800 hover:bg-emerald-700 rounded-xl transition shadow-sm"
+                >
+                  Simpan Perubahan
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Revisi Massal / Santri Berhenti */}
+      {isRevisionModalOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+              <div>
+                <h4 className="text-base font-bold text-slate-800">
+                  Pengaturan Khusus Tagihan
+                </h4>
+                <p className="text-xs text-slate-500">
+                  Penyesuaian tarif SPP dan santri berhenti/pindah di tengah tahun ajaran
+                </p>
+              </div>
+              <button
+                onClick={() => setIsRevisionModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Tab Selector */}
+            <div className="flex border-b border-slate-200 mb-4">
+              <button
+                type="button"
+                onClick={() => setRevisionTab('revise_spp')}
+                className={`flex-1 py-2.5 text-xs font-bold border-b-2 transition flex items-center justify-center gap-2 ${
+                  revisionTab === 'revise_spp'
+                    ? 'border-emerald-700 text-emerald-800 bg-emerald-50/50'
+                    : 'border-transparent text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                <Sliders className="w-4 h-4" />
+                <span>Revisi Tarif SPP Santri</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setRevisionTab('dropout')}
+                className={`flex-1 py-2.5 text-xs font-bold border-b-2 transition flex items-center justify-center gap-2 ${
+                  revisionTab === 'dropout'
+                    ? 'border-rose-600 text-rose-700 bg-rose-50/50'
+                    : 'border-transparent text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                <UserMinus className="w-4 h-4" />
+                <span>Santri Berhenti / Pindah</span>
+              </button>
+            </div>
+
+            {revisionTab === 'revise_spp' ? (
+              <form onSubmit={handleApplyRevisionSPP} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Pilih Santri *
+                  </label>
+                  <select
+                    required
+                    value={revStudentId}
+                    onChange={(e) => setRevStudentId(e.target.value)}
+                    className="w-full text-xs font-medium px-3 py-2 rounded-xl border border-slate-300 bg-white"
+                  >
+                    <option value="">-- Pilih Santri --</option>
+                    {students.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.full_name} ({s.current_enrollment?.unit || 'SMP IT'} - {s.current_enrollment?.grade || '-'})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Besaran Tarif SPP Baru (Rp) *
+                  </label>
+                  <input
+                    type="number"
+                    required
+                    min="0"
+                    placeholder="Contoh: 1100000"
+                    value={revAmount}
+                    onChange={(e) => setRevAmount(e.target.value)}
+                    className="w-full text-xs font-bold px-3 py-2 rounded-xl border border-slate-300"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Berlaku Mulai Bulan *
+                  </label>
+                  <select
+                    value={revFromMonth}
+                    onChange={(e) => setRevFromMonth(e.target.value)}
+                    className="w-full text-xs font-medium px-3 py-2 rounded-xl border border-slate-300 bg-white"
+                  >
+                    {SPP_MONTHS.map((m) => (
+                      <option key={m} value={m}>
+                        Bulan {m} ke depan
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-[11px] text-emerald-800 space-y-1">
+                  <p className="font-bold flex items-center gap-1.5">
+                    <Info className="w-3.5 h-3.5" />
+                    Cara Kerja Revisi SPP:
+                  </p>
+                  <p>
+                    Semua tagihan SPP santri ini mulai bulan <strong>{revFromMonth}</strong> s/d Juni yang belum lunas akan otomatis disesuaikan ke nominal baru <strong>Rp{Number(revAmount || 0).toLocaleString('id-ID')}</strong>. Tagihan bulan sebelum {revFromMonth} yang sudah berjalan tidak akan terpengaruh.
+                  </p>
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => setIsRevisionModalOpen(false)}
+                    className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-5 py-2 text-xs font-bold text-white bg-emerald-800 hover:bg-emerald-700 rounded-xl transition shadow-sm"
+                  >
+                    Terapkan Perubahan Tarif
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <form onSubmit={handleApplyDropout} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Pilih Santri yang Berhenti / Pindah *
+                  </label>
+                  <select
+                    required
+                    value={dropoutStudentId}
+                    onChange={(e) => setDropoutStudentId(e.target.value)}
+                    className="w-full text-xs font-medium px-3 py-2 rounded-xl border border-slate-300 bg-white"
+                  >
+                    <option value="">-- Pilih Santri --</option>
+                    {students.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.full_name} ({s.current_enrollment?.unit || 'SMP IT'} - {s.current_enrollment?.grade || '-'})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      Status Santri Baru
+                    </label>
+                    <select
+                      value={dropoutStatus}
+                      onChange={(e) => setDropoutStatus(e.target.value as 'nonaktif' | 'pindah')}
+                      className="w-full text-xs font-medium px-3 py-2 rounded-xl border border-slate-300 bg-white"
+                    >
+                      <option value="nonaktif">Non-Aktif (Berhenti / Keluar)</option>
+                      <option value="pindah">Pindah Sekolah</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      Efektif Mulai Bulan
+                    </label>
+                    <select
+                      value={dropoutMonth}
+                      onChange={(e) => setDropoutMonth(e.target.value)}
+                      className="w-full text-xs font-medium px-3 py-2 rounded-xl border border-slate-300 bg-white"
+                    >
+                      {SPP_MONTHS.map((m) => (
+                        <option key={m} value={m}>
+                          Bulan {m}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-2">
+                    Tindakan Tagihan Bulan Mendatang ({dropoutMonth} s/d Juni):
+                  </label>
+                  <div className="space-y-2">
+                    <label className="flex items-start gap-2.5 p-2.5 rounded-xl border border-slate-200 bg-slate-50/60 cursor-pointer hover:bg-slate-100/60 transition">
+                      <input
+                        type="radio"
+                        name="dropoutAction"
+                        checked={dropoutAction === 'bebas'}
+                        onChange={() => setDropoutAction('bebas')}
+                        className="mt-0.5 text-emerald-700"
+                      />
+                      <div>
+                        <span className="text-xs font-bold text-slate-800">
+                          Bebaskan Tagihan (Status: Bebas) - Disarankan
+                        </span>
+                        <p className="text-[11px] text-slate-500">
+                          Tagihan tetap tersimpan untuk riwayat audit, namun status menjadi Bebas sehingga tidak akan lagi tertagih ataupun dihitung sebagai tunggakan aktif.
+                        </p>
+                      </div>
+                    </label>
+
+                    <label className="flex items-start gap-2.5 p-2.5 rounded-xl border border-slate-200 bg-slate-50/60 cursor-pointer hover:bg-slate-100/60 transition">
+                      <input
+                        type="radio"
+                        name="dropoutAction"
+                        checked={dropoutAction === 'delete'}
+                        onChange={() => setDropoutAction('delete')}
+                        className="mt-0.5 text-rose-600"
+                      />
+                      <div>
+                        <span className="text-xs font-bold text-rose-800">
+                          Hapus Permanen Tagihan Mendatang
+                        </span>
+                        <p className="text-[11px] text-slate-500">
+                          Tagihan SPP bulan {dropoutMonth} ke depan yang belum dibayar akan dihapus secara permanen dari database.
+                        </p>
+                      </div>
+                    </label>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => setIsRevisionModalOpen(false)}
+                    className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-5 py-2 text-xs font-bold text-white bg-rose-700 hover:bg-rose-600 rounded-xl transition shadow-sm"
+                  >
+                    Proses Santri Berhenti
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
         </div>
       )}
