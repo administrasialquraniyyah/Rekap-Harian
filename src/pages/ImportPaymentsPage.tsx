@@ -10,12 +10,14 @@ import {
   Database,
   Calendar,
   Layers,
-  Check
+  Check,
+  Info
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { studentService } from '../services/studentService';
+import { billingService, SPP_MONTHS } from '../services/billingService';
 import { paymentService } from '../services/paymentService';
-import { SPP_MONTHS } from '../services/billingService';
+import { Student, Bill } from '../types/database';
 import * as XLSX from 'xlsx';
 
 interface MatchedPaymentItem {
@@ -48,6 +50,50 @@ export function parseCurrencyNumber(val: any, fallback: number = 0): number {
   return isNaN(parsed) ? fallback : parsed;
 }
 
+export function parseDateToYMD(val: any): string {
+  if (!val) return new Date().toISOString().split('T')[0];
+  if (val instanceof Date && !isNaN(val.getTime())) {
+    return val.toISOString().split('T')[0];
+  }
+  if (typeof val === 'number' && val > 10000) {
+    const d = XLSX.SSF.parse_date_code(val);
+    return `${d.y}-${String(d.m).padStart(2, '0')}-${String(d.d).padStart(2, '0')}`;
+  }
+  const s = String(val).trim();
+  const monthsMap: Record<string, string> = {
+    jan: '01', feb: '02', mar: '03', apr: '04', mei: '05', may: '05',
+    jun: '06', jul: '07', agu: '08', aug: '08', sep: '09', okt: '10', oct: '10',
+    nov: '11', des: '12', dec: '12'
+  };
+  const parts = s.split(/[-/.\s]+/);
+  if (parts.length === 3) {
+    let [p1, p2, p3] = parts;
+    let year = p3.length === 4 ? p3 : (p1.length === 4 ? p1 : '2026');
+    let month = '01';
+    let day = '01';
+    if (p3.length === 4) {
+      day = p1.padStart(2, '0');
+      const mStr = p2.toLowerCase().substring(0, 3);
+      month = monthsMap[mStr] || p2.padStart(2, '0');
+    } else {
+      day = p3.padStart(2, '0');
+      const mStr = p2.toLowerCase().substring(0, 3);
+      month = monthsMap[mStr] || p2.padStart(2, '0');
+    }
+    return `${year}-${month}-${day}`;
+  }
+  return s;
+}
+
+export function matchSppMonth(text: string): string | null {
+  if (!text) return null;
+  const lower = String(text).toLowerCase();
+  for (const m of SPP_MONTHS) {
+    if (lower.includes(m.toLowerCase())) return m;
+  }
+  return null;
+}
+
 export const ImportPaymentsPage: React.FC = () => {
   const { selectedAcademicYearId, selectedAcademicYear, showToast, triggerRefresh } = useApp();
 
@@ -60,6 +106,8 @@ export const ImportPaymentsPage: React.FC = () => {
     totalMatched: number;
     totalUnmatched: number;
     totalAmount: number;
+    sppCount: number;
+    nonSppCount: number;
   } | null>(null);
 
   const normalizeName = (name: string) => {
@@ -82,10 +130,31 @@ export const ImportPaymentsPage: React.FC = () => {
       const buffer = await uploadedFile.arrayBuffer();
       const workbook = XLSX.read(buffer, { cellDates: true });
       
-      // Load current students from Supabase (or localStore)
-      const students = await studentService.getAllWithEnrollment({
-        academicYearId: selectedAcademicYearId || undefined,
+      // Load current students and existing bills from Supabase
+      const [students, bills] = await Promise.all([
+        studentService.getAllWithEnrollment({
+          academicYearId: selectedAcademicYearId || undefined,
+        }),
+        selectedAcademicYearId ? billingService.getBillsForAcademicYear(selectedAcademicYearId) : Promise.resolve([])
+      ]);
+
+      // Index bills by studentId and month/category for fast lookup
+      const sppBillMap: Record<string, Record<string, Bill>> = {};
+      bills.forEach((b) => {
+        if (b.category?.name?.toLowerCase().includes('spp') && b.billing_period) {
+          if (!sppBillMap[b.student_id]) sppBillMap[b.student_id] = {};
+          sppBillMap[b.student_id][b.billing_period.toLowerCase()] = b;
+        }
       });
+
+      const getSppNominalForStudent = (student: Student | undefined, month: string): number => {
+        if (!student) return 1335000;
+        const b = sppBillMap[student.id]?.[month.toLowerCase()];
+        if (b && b.amount !== undefined && b.amount !== null) {
+          return Number(b.amount);
+        }
+        return student.current_enrollment?.unit === 'SMA IT' ? 1385000 : 1335000;
+      };
 
       // Check if file has 'PEMBAYARAN' sheet (standard Excel template)
       const bayarSheet = workbook.Sheets['PEMBAYARAN'] || workbook.Sheets[workbook.SheetNames[0]];
@@ -133,28 +202,21 @@ export const ImportPaymentsPage: React.FC = () => {
             (s) => normalizeName(s.full_name) === cleanName
           );
 
-          const defaultSppNominal = matchedStudent?.current_enrollment?.unit === 'SMA IT' ? 1385000 : 1335000;
-
           // 1. Process SPP months
           for (const mItem of monthIndices) {
             const cellVal = row[mItem.idx];
             if (cellVal && cellVal !== 'Belum Dibayar' && cellVal !== 'Akan Berlangsung') {
-              let dateStr = '2026-08-28';
+              let dateStr = parseDateToYMD(cellVal);
               let isPaid = false;
 
-              if (cellVal instanceof Date) {
-                dateStr = cellVal.toISOString().split('T')[0];
-                isPaid = true;
-              } else if (typeof cellVal === 'number' && cellVal > 10000) {
-                const d = XLSX.SSF.parse_date_code(cellVal);
-                dateStr = `${d.y}-${String(d.m).padStart(2, '0')}-${String(d.d).padStart(2, '0')}`;
-                isPaid = true;
-              } else if (typeof cellVal === 'string' && /\d{1,4}[-/.]\d{1,2}[-/.]\d{1,4}/.test(cellVal)) {
-                dateStr = cellVal.replace(/\//g, '-');
+              if (cellVal instanceof Date || typeof cellVal === 'number' || (typeof cellVal === 'string' && cellVal.length > 3)) {
                 isPaid = true;
               }
 
               if (isPaid) {
+                // Khusus SPP: otomatis mengikuti tagihan siswa yang ada di database
+                const autoSppNominal = getSppNominalForStudent(matchedStudent, mItem.month);
+
                 matchedList.push({
                   studentName: nameStr,
                   studentId: matchedStudent?.id,
@@ -162,7 +224,7 @@ export const ImportPaymentsPage: React.FC = () => {
                   itemType: 'SPP',
                   categoryOrMonth: mItem.month,
                   paymentDate: dateStr,
-                  amount: defaultSppNominal,
+                  amount: autoSppNominal,
                 });
               }
             }
@@ -187,11 +249,15 @@ export const ImportPaymentsPage: React.FC = () => {
       } else {
         // LIST FORMAT (Rows of: Nama, Tagihan/Bulan/Rincian, Tanggal, Nominal)
         const dateIdx = headerUpper.findIndex((h: string) => h.includes('TANGGAL') || h.includes('DATE'));
-        const nominalIdx = headerUpper.findIndex((h: string) => 
-          h === 'NOMINAL DIBAYAR' || h === 'NOMINAL BAYAR' || h === 'NOMINAL' || h.includes('JUMLAH') || h.includes('BAYAR')
-        );
         const tagihanIdx = headerUpper.findIndex((h: string) => 
-          h.includes('TAGIHAN') || h.includes('BULAN') || h.includes('ITEM') || h.includes('RINCIAN 1') || h.includes('RINCIAN')
+          h.includes('TAGIHAN') || h.includes('BULAN') || h.includes('ITEM') || h.includes('RINCIAN') || h.includes('KETERANGAN')
+        );
+        // Nominal must be distinct from date, name, and tagihan columns
+        const nominalIdx = headerUpper.findIndex((h: string, idx: number) => 
+          idx !== dateIdx && 
+          idx !== nameColIdx && 
+          idx !== tagihanIdx && 
+          (h === 'NOMINAL' || h === 'NOMINAL DIBAYAR' || h === 'NOMINAL BAYAR' || h.includes('NOMINAL') || h.includes('JUMLAH') || h.includes('TOTAL') || (h.includes('BAYAR') && !h.includes('TANGGAL')))
         );
 
         for (let r = 1; r < rows.length; r++) {
@@ -205,35 +271,32 @@ export const ImportPaymentsPage: React.FC = () => {
           );
 
           const tagihanStr = tagihanIdx !== -1 ? String(row[tagihanIdx] || 'SPP').trim() : 'SPP';
-          const defaultNominal = matchedStudent?.current_enrollment?.unit === 'SMA IT' ? 1385000 : 1335000;
-          let nominalVal = nominalIdx !== -1 ? parseCurrencyNumber(row[nominalIdx], defaultNominal) : defaultNominal;
-          if (nominalVal <= 0) nominalVal = defaultNominal;
+          const detectedSppMonth = matchSppMonth(tagihanStr);
+          const isSpp = detectedSppMonth !== null;
 
-          let dateStr = new Date().toISOString().split('T')[0];
+          let finalAmount = 0;
+          let categoryOrMonth = '';
 
-          if (dateIdx !== -1 && row[dateIdx]) {
-            const dVal = row[dateIdx];
-            if (dVal instanceof Date) {
-              dateStr = dVal.toISOString().split('T')[0];
-            } else if (typeof dVal === 'number' && dVal > 10000) {
-              const d = XLSX.SSF.parse_date_code(dVal);
-              dateStr = `${d.y}-${String(d.m).padStart(2, '0')}-${String(d.d).padStart(2, '0')}`;
-            } else if (typeof dVal === 'string') {
-              dateStr = dVal.replace(/\//g, '-');
-            }
+          if (isSpp) {
+            // KHUSUS SPP: Tidak perlu memasukkan nominal dari Excel, otomatis mengikuti tagihan yang sudah ada di database
+            categoryOrMonth = detectedSppMonth;
+            finalAmount = getSppNominalForStudent(matchedStudent, detectedSppMonth);
+          } else {
+            // KHUSUS PEMBAYARAN LAINNYA: Nominal diambil dari file Excel
+            categoryOrMonth = tagihanStr || 'Lainnya';
+            finalAmount = nominalIdx !== -1 ? parseCurrencyNumber(row[nominalIdx], 0) : 0;
           }
 
-          const isSpp = SPP_MONTHS.some((m) => tagihanStr.toLowerCase().includes(m.toLowerCase()));
-          const matchedMonth = SPP_MONTHS.find((m) => tagihanStr.toLowerCase().includes(m.toLowerCase())) || 'Oktober';
+          let dateStr = dateIdx !== -1 ? parseDateToYMD(row[dateIdx]) : new Date().toISOString().split('T')[0];
 
           matchedList.push({
             studentName: nameStr,
             studentId: matchedStudent?.id,
             matched: Boolean(matchedStudent),
             itemType: isSpp ? 'SPP' : 'Non-SPP',
-            categoryOrMonth: isSpp ? matchedMonth : tagihanStr,
+            categoryOrMonth: categoryOrMonth,
             paymentDate: dateStr,
-            amount: nominalVal,
+            amount: finalAmount,
           });
         }
       }
@@ -243,14 +306,18 @@ export const ImportPaymentsPage: React.FC = () => {
       const matchedCount = matchedList.filter((m) => m.matched).length;
       const unmatchedCount = matchedList.filter((m) => !m.matched).length;
       const sumAmount = matchedList.reduce((sum, m) => sum + (isNaN(m.amount) ? 0 : m.amount), 0);
+      const sppCount = matchedList.filter((m) => m.itemType === 'SPP').length;
+      const nonSppCount = matchedList.filter((m) => m.itemType === 'Non-SPP').length;
 
       setImportSummary({
         totalMatched: matchedCount,
         totalUnmatched: unmatchedCount,
         totalAmount: sumAmount,
+        sppCount,
+        nonSppCount,
       });
 
-      showToast(`Berhasil membaca ${matchedList.length} transaksi dari file Excel`, 'success');
+      showToast(`Berhasil membaca ${matchedList.length} transaksi (${sppCount} SPP otomatis, ${nonSppCount} lainnya)`, 'success');
     } catch (err: any) {
       console.error(err);
       showToast('Gagal memproses file: ' + err.message, 'error');
@@ -309,10 +376,11 @@ export const ImportPaymentsPage: React.FC = () => {
 
   const downloadSampleTemplate = () => {
     const sampleRows = [
-      { 'Nama Siswa': 'Aditya Ramadhan', 'Bulan / Tagihan': 'September', 'Tanggal Bayar': '2026-09-10', 'Nominal': 1335000 },
-      { 'Nama Siswa': 'Aditya Ramadhan', 'Bulan / Tagihan': 'Oktober', 'Tanggal Bayar': '2026-10-08', 'Nominal': 1335000 },
-      { 'Nama Siswa': 'Umar Faqih Al Ghozy', 'Bulan / Tagihan': 'Oktober', 'Tanggal Bayar': '2026-10-15', 'Nominal': 1385000 },
+      { 'Nama Siswa': 'Aditya Ramadhan', 'Bulan / Tagihan': 'SPP September', 'Tanggal Bayar': '2026-09-10', 'Nominal': '' },
+      { 'Nama Siswa': 'Aditya Ramadhan', 'Bulan / Tagihan': 'SPP Oktober', 'Tanggal Bayar': '2026-10-08', 'Nominal': '' },
+      { 'Nama Siswa': 'Umar Faqih Al Ghozy', 'Bulan / Tagihan': 'SPP Oktober', 'Tanggal Bayar': '2026-10-15', 'Nominal': '' },
       { 'Nama Siswa': 'Ahmad Omar Rafly Lubis', 'Bulan / Tagihan': 'Buku Paket', 'Tanggal Bayar': '2026-10-15', 'Nominal': 450000 },
+      { 'Nama Siswa': 'Ahmad Omar Rafly Lubis', 'Bulan / Tagihan': 'Kegiatan', 'Tanggal Bayar': '2026-10-15', 'Nominal': 300000 },
     ];
     const ws = XLSX.utils.json_to_sheet(sampleRows);
     const wb = XLSX.utils.book_new();
@@ -345,6 +413,27 @@ export const ImportPaymentsPage: React.FC = () => {
         </button>
       </div>
 
+      {/* Information Banner on Rules */}
+      <div className="bg-amber-50/80 border border-amber-200 rounded-2xl p-4 flex items-start gap-3 text-xs text-amber-900 shadow-xs">
+        <div className="w-8 h-8 rounded-xl bg-amber-200 text-amber-800 flex items-center justify-center shrink-0 mt-0.5 font-bold">
+          <Info className="w-4 h-4" />
+        </div>
+        <div className="space-y-1">
+          <p className="font-bold text-amber-950 text-sm">Petunjuk Pengisian File Import Pembayaran:</p>
+          <ul className="list-disc list-inside space-y-1 text-amber-900 text-xs">
+            <li>
+              <strong>Khusus Pembayaran SPP:</strong> Tidak perlu memasukkan nominal di Excel (boleh dikosongkan). Sistem otomatis mendeteksi dan menggunakan nominal tagihan siswa yang tersimpan di database.
+            </li>
+            <li>
+              <strong>Pembayaran Lainnya (Non-SPP):</strong> Wajib menyertakan nominal pembayaran pada kolom Nominal (contoh: Buku Paket Rp450.000, Kegiatan Rp300.000, Peralatan, dll).
+            </li>
+            <li>
+              <strong>Format Tanggal:</strong> Mendukung berbagai format tanggal (contoh: <code>2026-10-15</code>, <code>15-Oct-2026</code>, atau <code>15/10/2026</code>).
+            </li>
+          </ul>
+        </div>
+      </div>
+
       {/* Upload Zone */}
       <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-xs space-y-4">
         <div className="border-2 border-dashed border-emerald-300 rounded-2xl p-8 text-center hover:border-emerald-600 transition bg-emerald-50/20">
@@ -375,7 +464,7 @@ export const ImportPaymentsPage: React.FC = () => {
         {isProcessing && (
           <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 text-center text-xs text-slate-600 flex items-center justify-center gap-2">
             <RefreshCw className="w-4 h-4 animate-spin text-emerald-700" />
-            <span>Mencocokkan nama siswa dengan database online dan mengurai tanggal transaksi...</span>
+            <span>Mencocokkan nama siswa dengan tagihan database online dan mengurai tanggal transaksi...</span>
           </div>
         )}
 
@@ -402,7 +491,7 @@ export const ImportPaymentsPage: React.FC = () => {
         {/* Summary Card */}
         {importSummary && !isApplying && (
           <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="grid grid-cols-3 gap-4 text-xs">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
               <div>
                 <p className="text-slate-500">Siswa Cocok</p>
                 <p className="font-black text-emerald-800 text-base">{importSummary.totalMatched}</p>
@@ -410,6 +499,10 @@ export const ImportPaymentsPage: React.FC = () => {
               <div>
                 <p className="text-slate-500">Tidak Dikenal</p>
                 <p className="font-black text-rose-600 text-base">{importSummary.totalUnmatched}</p>
+              </div>
+              <div>
+                <p className="text-slate-500">Transaksi SPP (Otomatis)</p>
+                <p className="font-black text-emerald-700 text-base">{importSummary.sppCount}</p>
               </div>
               <div>
                 <p className="text-slate-500">Total Nilai Transaksi</p>
@@ -422,7 +515,7 @@ export const ImportPaymentsPage: React.FC = () => {
             <button
               onClick={handleApplyToRecap}
               disabled={isApplying || importSummary.totalMatched === 0}
-              className="flex items-center gap-2 px-6 py-2.5 bg-emerald-800 hover:bg-emerald-700 disabled:opacity-50 text-white font-black text-xs rounded-xl shadow-md transition"
+              className="flex items-center justify-center gap-2 px-6 py-2.5 bg-emerald-800 hover:bg-emerald-700 disabled:opacity-50 text-white font-black text-xs rounded-xl shadow-md transition"
             >
               <CheckCircle2 className="w-4 h-4 text-gold-400" />
               <span>Terapkan Pembayaran ke Rekap</span>
@@ -476,8 +569,25 @@ export const ImportPaymentsPage: React.FC = () => {
                       <td className="py-2 px-3 text-center font-mono text-[11px] text-slate-600">
                         {item.paymentDate}
                       </td>
-                      <td className="py-2 px-3 text-right font-bold text-emerald-700">
-                        Rp{Number(item.amount || 0).toLocaleString('id-ID')}
+                      <td className="py-2 px-3 text-right">
+                        <div className="flex flex-col items-end">
+                          <span className="font-bold text-slate-800">
+                            Rp{Number(item.amount || 0).toLocaleString('id-ID')}
+                          </span>
+                          {item.itemType === 'SPP' ? (
+                            <span className="text-[9px] font-bold text-emerald-800 bg-emerald-100/80 px-1.5 py-0.2 rounded mt-0.5">
+                              ✓ Sesuai Tagihan Siswa
+                            </span>
+                          ) : item.amount > 0 ? (
+                            <span className="text-[9px] font-bold text-blue-800 bg-blue-100/80 px-1.5 py-0.2 rounded mt-0.5">
+                              Dari Kolom Excel
+                            </span>
+                          ) : (
+                            <span className="text-[9px] font-bold text-rose-700 bg-rose-100/80 px-1.5 py-0.2 rounded mt-0.5">
+                              ⚠️ Nominal Kosong
+                            </span>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}
