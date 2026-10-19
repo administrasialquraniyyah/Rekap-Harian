@@ -92,6 +92,41 @@ export const excelService = {
       }
     }
 
+    // Auto-detect if non-SPP columns in PEMBAYARAN sheet are rotated/shifted
+    // In legacy workbooks, the physical order of columns was: Peralatan (Buku), Kegiatan, Pembangunan, Perlengkapan,
+    // but the header was labeled: PERLENGKAPAN, PERALATAN, KEGIATAN, PEMBANGUNAN.
+    let isNonSppShifted = false;
+    const idxBayarPerl = bayarHeader.findIndex((h: string) => h.toUpperCase().includes('PERLENGKAPAN'));
+    const idxBayarPera = bayarHeader.findIndex((h: string) => h.toUpperCase().includes('PERALATAN'));
+    const idxBayarKegi = bayarHeader.findIndex((h: string) => h.toUpperCase().includes('KEGIATAN'));
+    const idxBayarPemb = bayarHeader.findIndex((h: string) => h.toUpperCase().includes('PEMBANGUNAN'));
+
+    if (idxBayarPerl !== -1 && idxBayarPera !== -1 && idxBayarPemb !== -1) {
+      let shiftedVotes = 0;
+      let normalVotes = 0;
+      for (let r = 1; r < Math.min(tagihanRows.length, 40); r++) {
+        const tRow = tagihanRows[r];
+        const sName = String(tRow[colIdx.name] || '').trim().toLowerCase();
+        if (!sName) continue;
+        const bRow = bayarLookupByName.get(sName);
+        if (!bRow) continue;
+
+        const tPera = Number(tRow[colIdx.peralatan] || 0);
+        const tPerl = Number(tRow[colIdx.perlengkapan] || 0);
+        const tPemb = Number(tRow[colIdx.pembangunan] || 0);
+
+        const bPerlCol = Number(bRow[idxBayarPerl] || 0);
+        const bPembCol = Number(bRow[idxBayarPemb] || 0);
+
+        if (bPerlCol > 0 && tPera > 0 && bPerlCol === tPera) shiftedVotes++;
+        if (bPembCol > 0 && tPerl > 0 && bPembCol === tPerl) shiftedVotes++;
+
+        if (bPerlCol > 0 && tPerl > 0 && bPerlCol === tPerl) normalVotes++;
+        if (bPembCol > 0 && tPemb > 0 && bPembCol === tPemb) normalVotes++;
+      }
+      isNonSppShifted = shiftedVotes > normalVotes;
+    }
+
     const previewList: ImportPreviewItem[] = [];
 
     // Process each student row in TAGIHAN
@@ -180,17 +215,46 @@ export const excelService = {
         });
 
         // Other payments in PEMBAYARAN sheet
-        const catCols = ['PERLENGKAPAN', 'PERALATAN', 'KEGIATAN', 'PEMBANGUNAN', 'UJIAN', 'LAINNYA'];
-        catCols.forEach((cat) => {
-          const cIdx = bayarHeader.findIndex((h: string) => h.toUpperCase().includes(cat));
-          if (cIdx !== -1) {
-            const pVal = Number(bayarRow[cIdx] || 0);
-            if (pVal > 0) {
-              const properName = cat === 'LAINNYA' ? 'Lainnya' : (cat.charAt(0) + cat.slice(1).toLowerCase());
-              otherPayments.push({ categoryName: properName, paidAmount: pVal });
-            }
+        if (isNonSppShifted) {
+          // Shifted mapping:
+          // Col labeled PERLENGKAPAN -> Peralatan
+          // Col labeled PERALATAN -> Kegiatan
+          // Col labeled KEGIATAN -> Pembangunan
+          // Col labeled PEMBANGUNAN -> Perlengkapan
+          if (idxBayarPerl !== -1 && Number(bayarRow[idxBayarPerl] || 0) > 0) {
+            otherPayments.push({ categoryName: 'Peralatan', paidAmount: Number(bayarRow[idxBayarPerl]) });
           }
-        });
+          if (idxBayarPera !== -1 && Number(bayarRow[idxBayarPera] || 0) > 0) {
+            otherPayments.push({ categoryName: 'Kegiatan', paidAmount: Number(bayarRow[idxBayarPera]) });
+          }
+          if (idxBayarKegi !== -1 && Number(bayarRow[idxBayarKegi] || 0) > 0) {
+            otherPayments.push({ categoryName: 'Pembangunan', paidAmount: Number(bayarRow[idxBayarKegi]) });
+          }
+          if (idxBayarPemb !== -1 && Number(bayarRow[idxBayarPemb] || 0) > 0) {
+            otherPayments.push({ categoryName: 'Perlengkapan', paidAmount: Number(bayarRow[idxBayarPemb]) });
+          }
+          const uIdx = bayarHeader.findIndex((h: string) => h.toUpperCase().includes('UJIAN'));
+          if (uIdx !== -1 && Number(bayarRow[uIdx] || 0) > 0) {
+            otherPayments.push({ categoryName: 'Ujian', paidAmount: Number(bayarRow[uIdx]) });
+          }
+          const lIdx = bayarHeader.findIndex((h: string) => h.toUpperCase().includes('LAINNYA'));
+          if (lIdx !== -1 && Number(bayarRow[lIdx] || 0) > 0) {
+            otherPayments.push({ categoryName: 'Lainnya', paidAmount: Number(bayarRow[lIdx]) });
+          }
+        } else {
+          // Normal mapping by header name
+          const catCols = ['PERLENGKAPAN', 'PERALATAN', 'KEGIATAN', 'PEMBANGUNAN', 'UJIAN', 'LAINNYA'];
+          catCols.forEach((cat) => {
+            const cIdx = bayarHeader.findIndex((h: string) => h.toUpperCase().includes(cat));
+            if (cIdx !== -1) {
+              const pVal = Number(bayarRow[cIdx] || 0);
+              if (pVal > 0) {
+                const properName = cat === 'LAINNYA' ? 'Lainnya' : (cat.charAt(0) + cat.slice(1).toLowerCase());
+                otherPayments.push({ categoryName: properName, paidAmount: pVal });
+              }
+            }
+          });
+        }
       } else {
         SPP_MONTHS.forEach((month) => {
           sppPayments.push({ month, paidDate: null, isPaid: isFreeSPP, isFree: isFreeSPP });
