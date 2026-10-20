@@ -64,9 +64,9 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle, onOpenMobileMen
             </div>
             <div className="hidden md:block text-left">
               <p className="font-semibold text-slate-800 leading-tight">
-                {user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Bendahara'}
+                {user?.user_metadata?.full_name || 'Nasrulloh'}
               </p>
-              <p className="text-[10px] text-slate-400 font-medium">Petugas Keuangan</p>
+              <p className="text-[10px] text-emerald-800 font-bold">Bendahara Al-Qur'aniyyah</p>
             </div>
           </div>
 

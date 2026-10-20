@@ -107,10 +107,11 @@ export const StudentArrearsCardModal: React.FC<StudentArrearsCardModalProps> = (
     text += `----------------------------------------\n\n`;
     text += `*Pembayaran dapat disalurkan melalui transfer:*\n`;
     text += `Bank Syariah Indonesia (BSI)\n`;
-    text += `No. Rekening : *7123456789*\n`;
+    text += `No. Rekening : *7110256118*\n`;
     text += `Atas Nama    : *Yayasan Al-Qur'aniyyah*\n\n`;
+    text += `Konfirmasi Bukti Transfer: *085717235374* (Bendahara: Nasrulloh)\n\n`;
     text += `Mohon kirimkan bukti transfer setelah melakukan pembayaran. Atas perhatian dan kerjasamanya kami ucapkan terima kasih. Jazakumullahu khairan. 🙏\n\n`;
-    text += `_Bagian Administrasi Keuangan Al-Qur'aniyyah_`;
+    text += `_Bendahara Yayasan Al-Qur'aniyyah - Nasrulloh_`;
 
     navigator.clipboard.writeText(text);
     setCopied(true);
@@ -432,7 +433,7 @@ export const StudentArrearsCardModal: React.FC<StudentArrearsCardModalProps> = (
                   <div className="text-xs">
                     <p className="font-black text-emerald-950">Rekening Resmi Pembayaran Sekolah:</p>
                     <p className="text-slate-700 mt-0.5">
-                      Bank: <strong>Bank Syariah Indonesia (BSI)</strong> · No. Rek: <strong>7123456789</strong>
+                      Bank: <strong>Bank Syariah Indonesia (BSI)</strong> · No. Rek: <strong className="font-mono text-emerald-950 bg-emerald-100/70 px-1.5 py-0.5 rounded text-xs">7110256118</strong>
                     </p>
                     <p className="text-slate-600">
                       Atas Nama: <strong>Yayasan Al-Qur'aniyyah</strong>
@@ -442,8 +443,11 @@ export const StudentArrearsCardModal: React.FC<StudentArrearsCardModalProps> = (
 
                 <div className="text-right text-[11px] text-slate-500 border-t sm:border-t-0 sm:border-l border-emerald-200 pt-2 sm:pt-0 sm:pl-4">
                   <p className="font-semibold text-emerald-950">Konfirmasi Bukti Transfer:</p>
-                  <p className="font-bold text-slate-800">WA Bendahara: 0812-3456-7890</p>
-                  <p className="text-[10px] text-slate-400 mt-0.5">Cantumkan nama santri & kelas</p>
+                  <p className="font-bold text-slate-800 text-xs flex items-center justify-end gap-1">
+                    <Phone className="w-3 h-3 text-emerald-700" />
+                    <span>0857-1723-5374</span>
+                  </p>
+                  <p className="text-emerald-900 font-bold text-[11px] mt-0.5">Bendahara: Nasrulloh</p>
                 </div>
               </div>
             </div>
@@ -460,7 +464,7 @@ export const StudentArrearsCardModal: React.FC<StudentArrearsCardModalProps> = (
                   Jakarta, {todayFormatted}
                 </p>
                 <p className="text-[11px] font-semibold text-slate-700">
-                  Petugas Administrasi Keuangan,
+                  Bendahara Keuangan,
                 </p>
                 {/* Spacer for signature */}
                 <div className="h-14 flex items-center justify-center">
@@ -468,7 +472,10 @@ export const StudentArrearsCardModal: React.FC<StudentArrearsCardModalProps> = (
                     [Tervalidasi Sistem]
                   </span>
                 </div>
-                <p className="font-bold text-slate-800 text-xs border-t border-slate-300 pt-1">
+                <p className="font-bold text-slate-900 text-xs border-t border-slate-300 pt-1">
+                  Nasrulloh
+                </p>
+                <p className="text-[10px] text-slate-500 font-medium">
                   Bendahara Al-Qur'aniyyah
                 </p>
               </div>
