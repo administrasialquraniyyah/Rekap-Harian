@@ -609,45 +609,122 @@ export const excelService = {
     XLSX.writeFile(workbook, `${title}_${new Date().toISOString().split('T')[0]}.xlsx`);
   },
 
-  // Export List of Unpaid Students for a Specific SPP Month
+  // Export List of Unpaid Students for a Specific SPP Month (with Accumulated Arrears & Professional Theme)
   exportUnpaidSppExcel(
     students: {
       name: string;
+      nis?: string | null;
       unit: string;
       grade: string;
       phone: string | null;
-      spp_nominal?: number;
-      month: string;
+      spp_nominal: number;
+      unpaid_months?: string[];
+      unpaid_count?: number;
+      total_arrears?: number;
+      month?: string;
     }[],
-    month: string,
+    targetMonth: string,
     academicYearName: string
   ) {
-    const rows = students.map((s, idx) => ({
-      'NO': idx + 1,
-      'NAMA SISWA': s.name,
-      'JENJANG': s.unit,
-      'KELAS': s.grade,
-      'NOMOR TELPON': s.phone || '-',
-      'BULAN': `SPP ${month}`,
-      'TARIF SPP': s.spp_nominal || 0,
-      'STATUS': 'Belum Bayar'
-    }));
+    const now = new Date();
+    const monthsIndo = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+    const dateFormatted = `${now.getDate()} ${monthsIndo[now.getMonth()]} ${now.getFullYear()}`;
 
-    const worksheet = XLSX.utils.json_to_sheet(rows);
+    const totalArrearsSum = students.reduce((sum, s) => sum + (s.total_arrears || s.spp_nominal || 0), 0);
+    const totalMonthsSum = students.reduce((sum, s) => sum + (s.unpaid_count || 1), 0);
+
+    const sheetData: any[][] = [
+      ["YAYASAN PENDIDIKAN ISLAM PONDOK PESANTREN AL-QUR'ANIYYAH"],
+      ["SMP IT & SMA IT AL-QUR'ANIYYAH · PONDOK AREN TANGERANG SELATAN"],
+      ["REKAPITULASI DAFTAR TAGIHAN TUNGGAKAN SPP SISWA"],
+      [`Tahun Ajaran: ${academicYearName}  |  Posisi Tagihan s.d. Bulan: SPP ${targetMonth}  |  Tanggal Cetak: ${dateFormatted}`],
+      ["Rekening Resmi: Bank Syariah Indonesia (BSI) 7110256118 a.n. Yayasan Al-Qur'aniyyah | Konfirmasi WA: 0857-1723-5374 (Bendahara: Nasrulloh)"],
+      [], // Empty row separator
+      [
+        'NO',
+        'NAMA SISWA',
+        'NIS',
+        'JENJANG',
+        'KELAS',
+        'NO. WHATSAPP WALI',
+        'TARIF SPP/BLN (Rp)',
+        `BULAN TERTUNGGAK (S.D. ${targetMonth.toUpperCase()})`,
+        'JML BLN',
+        'TOTAL TAGIHAN SPP (Rp)',
+        'STATUS & TINDAK LANJUT'
+      ]
+    ];
+
+    students.forEach((s, idx) => {
+      const monthsStr = s.unpaid_months && s.unpaid_months.length > 0
+        ? s.unpaid_months.join(', ')
+        : `SPP ${s.month || targetMonth}`;
+      const monthsCount = s.unpaid_count || (s.unpaid_months ? s.unpaid_months.length : 1);
+      const totalAmount = s.total_arrears || (s.spp_nominal * monthsCount);
+      const statusNote = monthsCount > 1
+        ? `Tertunggak ${monthsCount} Bulan (Perlu Segera Ditagih)`
+        : 'Belum Bayar';
+
+      sheetData.push([
+        idx + 1,
+        s.name,
+        s.nis || '-',
+        s.unit,
+        s.grade,
+        s.phone || '-',
+        s.spp_nominal,
+        monthsStr,
+        monthsCount,
+        totalAmount,
+        statusNote
+      ]);
+    });
+
+    // Summary row
+    sheetData.push([
+      '',
+      'TOTAL AKUMULASI TAGIHAN SPP',
+      '',
+      '',
+      '',
+      '',
+      '',
+      `${totalMonthsSum} Bulan Tunggakan`,
+      `${students.length} Siswa`,
+      totalArrearsSum,
+      'Perlu Ditindaklanjuti'
+    ]);
+
+    const worksheet = XLSX.utils.aoa_to_sheet(sheetData);
+
+    // Merge header banner rows across columns A to K (columns 0 to 10)
+    worksheet['!merges'] = [
+      { s: { r: 0, c: 0 }, e: { r: 0, c: 10 } },
+      { s: { r: 1, c: 0 }, e: { r: 1, c: 10 } },
+      { s: { r: 2, c: 0 }, e: { r: 2, c: 10 } },
+      { s: { r: 3, c: 0 }, e: { r: 3, c: 10 } },
+      { s: { r: 4, c: 0 }, e: { r: 4, c: 10 } },
+      { s: { r: sheetData.length - 1, c: 1 }, e: { r: sheetData.length - 1, c: 6 } }
+    ];
+
+    // Column widths
     worksheet['!cols'] = [
-      { wch: 6 },
-      { wch: 32 },
-      { wch: 12 },
-      { wch: 10 },
-      { wch: 18 },
-      { wch: 15 },
-      { wch: 15 },
-      { wch: 14 }
+      { wch: 6 },   // NO
+      { wch: 32 },  // NAMA SISWA
+      { wch: 15 },  // NIS
+      { wch: 12 },  // JENJANG
+      { wch: 10 },  // KELAS
+      { wch: 20 },  // NO. WHATSAPP WALI
+      { wch: 18 },  // TARIF SPP
+      { wch: 38 },  // BULAN TERTUNGGAK
+      { wch: 12 },  // JML BLN
+      { wch: 24 },  // TOTAL TAGIHAN SPP
+      { wch: 32 },  // STATUS & TINDAK LANJUT
     ];
 
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, `Belum Bayar SPP ${month}`);
-    XLSX.writeFile(workbook, `Daftar_Belum_Bayar_SPP_${month}_${academicYearName.replace('/', '-')}.xlsx`);
+    XLSX.utils.book_append_sheet(workbook, worksheet, `Tagihan SPP sd ${targetMonth}`);
+    XLSX.writeFile(workbook, `Tagihan_Tunggakan_SPP_sd_${targetMonth}_${academicYearName.replace('/', '-')}.xlsx`);
   },
 
   // Download official Template Excel for initial database upload

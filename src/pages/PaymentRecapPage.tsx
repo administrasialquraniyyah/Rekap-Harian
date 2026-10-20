@@ -71,9 +71,10 @@ export const PaymentRecapPage: React.FC = () => {
 
   // Export Unpaid SPP Modal State
   const [showUnpaidExportModal, setShowUnpaidExportModal] = useState<boolean>(false);
-  const [modalMonthTarget, setModalMonthTarget] = useState<string>('Agustus');
+  const [modalMonthTarget, setModalMonthTarget] = useState<string>('Oktober');
   const [modalUnitTarget, setModalUnitTarget] = useState<'ALL' | 'SMP IT' | 'SMA IT'>('ALL');
   const [modalGradeTarget, setModalGradeTarget] = useState<string>('ALL');
+  const [modalAccumulatePrevious, setModalAccumulatePrevious] = useState<boolean>(true);
 
   // Modal In-Cell Edit for SPP Month
   const [editingSpp, setEditingSpp] = useState<{
@@ -309,36 +310,58 @@ export const PaymentRecapPage: React.FC = () => {
   const handleExportUnpaid = (
     targetMonth: string,
     targetUnit: string = 'ALL',
-    targetGrade: string = 'ALL'
+    targetGrade: string = 'ALL',
+    accumulatePrevious: boolean = true
   ) => {
-    const list = recapData.filter((r) => {
-      const cell = r.sppMonths[targetMonth];
-      const isUnpaid = cell?.status === 'Belum Dibayar' || cell?.status === 'Belum Lunas';
-      const mUnit = targetUnit === 'ALL' || r.unit === targetUnit;
-      const mGrade = targetGrade === 'ALL' || r.grade === targetGrade;
-      return isUnpaid && mUnit && mGrade;
-    });
+    const targetIdx = SPP_MONTHS.indexOf(targetMonth);
+    const monthsToCheck = (accumulatePrevious && targetIdx !== -1)
+      ? SPP_MONTHS.slice(0, targetIdx + 1)
+      : [targetMonth];
 
-    if (list.length === 0) {
-      showToast(`Tidak ditemukan siswa yang belum bayar SPP ${targetMonth} untuk filter ini`, 'info');
+    const listWithUnpaidDetails = recapData
+      .map((r) => {
+        const mUnit = targetUnit === 'ALL' || r.unit === targetUnit;
+        const mGrade = targetGrade === 'ALL' || r.grade === targetGrade;
+        if (!mUnit || !mGrade) return null;
+
+        const unpaidMonths = monthsToCheck.filter((m) => {
+          const cell = r.sppMonths[m];
+          return cell?.status === 'Belum Dibayar' || cell?.status === 'Belum Lunas';
+        });
+
+        if (unpaidMonths.length === 0) return null;
+
+        const totalArrears = unpaidMonths.reduce((sum, m) => {
+          const cell = r.sppMonths[m];
+          return sum + (cell?.amount || r.spp_nominal);
+        }, 0);
+
+        return {
+          name: r.student_name,
+          nis: r.nis,
+          unit: r.unit,
+          grade: r.grade,
+          phone: r.phone,
+          spp_nominal: r.spp_nominal,
+          unpaid_months: unpaidMonths,
+          unpaid_count: unpaidMonths.length,
+          total_arrears: totalArrears,
+          target_month: targetMonth,
+        };
+      })
+      .filter((item): item is NonNullable<typeof item> => item !== null);
+
+    if (listWithUnpaidDetails.length === 0) {
+      showToast(`Tidak ditemukan siswa yang menunggak SPP s.d. bulan ${targetMonth} untuk filter ini`, 'info');
       return;
     }
 
-    const payload = list.map((r) => ({
-      name: r.student_name,
-      unit: r.unit,
-      grade: r.grade,
-      phone: r.phone,
-      spp_nominal: r.spp_nominal,
-      month: targetMonth,
-    }));
-
     excelService.exportUnpaidSppExcel(
-      payload,
+      listWithUnpaidDetails,
       targetMonth,
       selectedAcademicYear?.name || '2026/2027'
     );
-    showToast(`Berhasil mendownload Excel ${payload.length} siswa belum bayar SPP ${targetMonth}`, 'success');
+    showToast(`Berhasil mendownload Excel tagihan ${listWithUnpaidDetails.length} siswa menunggak s.d. bulan ${targetMonth}`, 'success');
   };
 
   const handleExport = () => {
@@ -542,11 +565,11 @@ export const PaymentRecapPage: React.FC = () => {
           </div>
           <div className="flex items-center gap-2 w-full sm:w-auto">
             <button
-              onClick={() => handleExportUnpaid(unpaidMonthFilter, unitFilter, gradeFilter)}
+              onClick={() => handleExportUnpaid(unpaidMonthFilter, unitFilter, gradeFilter, true)}
               className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-amber-700 hover:bg-amber-800 text-white text-xs font-bold rounded-xl shadow-xs transition"
             >
               <Download className="w-4 h-4 text-amber-200" />
-              <span>Download Excel ({filteredRows.length} Siswa)</span>
+              <span>Download Excel Tagihan SPP ({filteredRows.length} Siswa)</span>
             </button>
             <button
               onClick={() => setUnpaidMonthFilter('ALL')}
@@ -897,17 +920,50 @@ export const PaymentRecapPage: React.FC = () => {
 
       {/* MODAL EXPORT SISWA BELUM BAYAR SPP */}
       {showUnpaidExportModal && (() => {
-        const modalMatchingCount = recapData.filter((r) => {
-          const cell = r.sppMonths[modalMonthTarget];
-          const isUnpaid = cell?.status === 'Belum Dibayar' || cell?.status === 'Belum Lunas';
-          const mUnit = modalUnitTarget === 'ALL' || r.unit === modalUnitTarget;
-          const mGrade = modalGradeTarget === 'ALL' || r.grade === modalGradeTarget;
-          return isUnpaid && mUnit && mGrade;
-        }).length;
+        const targetIdx = SPP_MONTHS.indexOf(modalMonthTarget);
+        const monthsToCheck = (modalAccumulatePrevious && targetIdx !== -1)
+          ? SPP_MONTHS.slice(0, targetIdx + 1)
+          : [modalMonthTarget];
+
+        const matchingStudents = recapData
+          .map((r) => {
+            const mUnit = modalUnitTarget === 'ALL' || r.unit === modalUnitTarget;
+            const mGrade = modalGradeTarget === 'ALL' || r.grade === modalGradeTarget;
+            if (!mUnit || !mGrade) return null;
+
+            const unpaidMonths = monthsToCheck.filter((m) => {
+              const cell = r.sppMonths[m];
+              return cell?.status === 'Belum Dibayar' || cell?.status === 'Belum Lunas';
+            });
+
+            if (unpaidMonths.length === 0) return null;
+
+            const totalArrears = unpaidMonths.reduce((sum, m) => {
+              const cell = r.sppMonths[m];
+              return sum + (cell?.amount || r.spp_nominal);
+            }, 0);
+
+            return {
+              name: r.student_name,
+              nis: r.nis,
+              unit: r.unit,
+              grade: r.grade,
+              phone: r.phone,
+              spp_nominal: r.spp_nominal,
+              unpaid_months: unpaidMonths,
+              unpaid_count: unpaidMonths.length,
+              total_arrears: totalArrears,
+            };
+          })
+          .filter((item): item is NonNullable<typeof item> => item !== null);
+
+        const modalMatchingCount = matchingStudents.length;
+        const totalUnpaidMonthsCount = matchingStudents.reduce((sum, s) => sum + s.unpaid_count, 0);
+        const totalUnpaidNominalSum = matchingStudents.reduce((sum, s) => sum + s.total_arrears, 0);
 
         return (
           <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in">
-            <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200">
+            <div className="bg-white rounded-2xl max-w-xl w-full p-6 shadow-2xl border border-slate-200">
               <div className="flex items-center justify-between pb-4 border-b border-slate-100">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center font-bold">
@@ -915,10 +971,10 @@ export const PaymentRecapPage: React.FC = () => {
                   </div>
                   <div>
                     <h4 className="text-base font-bold text-slate-800">
-                      Export Siswa Belum Bayar SPP
+                      Export Tagihan Tunggakan SPP
                     </h4>
                     <p className="text-xs text-slate-500">
-                      Download file Excel daftar siswa yang belum lunas per bulan
+                      Download file Excel daftar tagihan siswa beserta akumulasi bulan tertunggak
                     </p>
                   </div>
                 </div>
@@ -934,7 +990,7 @@ export const PaymentRecapPage: React.FC = () => {
                 {/* Target Bulan */}
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                    Pilih Bulan SPP Yang Ditagihkan *
+                    Pilih Posisi Bulan SPP Yang Ditagihkan *
                   </label>
                   <select
                     value={modalMonthTarget}
@@ -986,20 +1042,69 @@ export const PaymentRecapPage: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Real-time Match Preview */}
-                <div className="p-3.5 rounded-xl bg-amber-50/80 border border-amber-200 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-amber-900">
-                      Siswa Belum Bayar SPP {modalMonthTarget}:
+                {/* Akumulasi Bulan Sebelumnya Toggle */}
+                <div className="bg-amber-50/70 border border-amber-200 rounded-xl p-3 flex items-start gap-2.5">
+                  <input
+                    type="checkbox"
+                    id="accumulatePrev"
+                    checked={modalAccumulatePrevious}
+                    onChange={(e) => setModalAccumulatePrevious(e.target.checked)}
+                    className="mt-0.5 w-4 h-4 text-emerald-800 rounded focus:ring-emerald-700 cursor-pointer"
+                  />
+                  <label htmlFor="accumulatePrev" className="text-xs text-amber-950 font-medium cursor-pointer">
+                    <span className="font-bold block text-slate-800">
+                      Akumulasikan dengan tunggakan bulan-bulan sebelumnya (Rekomendasi)
                     </span>
-                    <span className="px-2.5 py-0.5 rounded-full bg-amber-200 text-amber-900 font-black text-xs">
-                      {modalMatchingCount} Siswa
+                    <span className="text-[11px] text-slate-600 block mt-0.5">
+                      Siswa yang menunggak di bulan {modalMonthTarget} maupun bulan sebelumnya ({monthsToCheck.join(', ')}) akan dihitung total akumulasi tagihannya di Excel.
+                    </span>
+                  </label>
+                </div>
+
+                {/* Real-time Statistics Summary */}
+                <div className="grid grid-cols-3 gap-2 p-3 rounded-xl bg-slate-50 border border-slate-200 text-center">
+                  <div>
+                    <span className="text-[10px] text-slate-500 font-semibold block uppercase">Siswa Menunggak</span>
+                    <span className="text-base font-black text-rose-600">{modalMatchingCount} Siswa</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-slate-500 font-semibold block uppercase">Bulan Tertunggak</span>
+                    <span className="text-base font-black text-slate-800">{totalUnpaidMonthsCount} Bulan</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-slate-500 font-semibold block uppercase">Total Tagihan SPP</span>
+                    <span className="text-sm font-black text-emerald-800">
+                      Rp{totalUnpaidNominalSum.toLocaleString('id-ID')}
                     </span>
                   </div>
-                  <p className="text-[11px] text-amber-800 leading-relaxed">
-                    📋 Kolom yang disertakan dalam Excel: <strong>NO, NAMA SISWA, JENJANG, KELAS, NOMOR TELPON (WhatsApp), BULAN, TARIF SPP, STATUS</strong>.
-                  </p>
                 </div>
+
+                {/* Preview sample students */}
+                {matchingStudents.length > 0 && (
+                  <div className="space-y-1.5">
+                    <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wide">
+                      Contoh Siswa Terfilter ({matchingStudents.length} siswa siap diexport):
+                    </p>
+                    <div className="max-h-28 overflow-y-auto space-y-1 pr-1 text-xs">
+                      {matchingStudents.slice(0, 4).map((s, idx) => (
+                        <div key={idx} className="bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 flex items-center justify-between">
+                          <div>
+                            <span className="font-bold text-slate-800">{s.name}</span>
+                            <span className="text-[10px] text-slate-500 ml-1.5">({s.unit} · Kelas {s.grade})</span>
+                          </div>
+                          <div className="text-right">
+                            <span className="text-[10px] bg-rose-100 text-rose-800 px-1.5 py-0.5 rounded font-bold mr-1.5">
+                              {s.unpaid_months.join(', ')}
+                            </span>
+                            <span className="font-black text-slate-700">
+                              Rp{s.total_arrears.toLocaleString('id-ID')}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Action Buttons */}
@@ -1015,7 +1120,7 @@ export const PaymentRecapPage: React.FC = () => {
                   type="button"
                   disabled={modalMatchingCount === 0}
                   onClick={() => {
-                    handleExportUnpaid(modalMonthTarget, modalUnitTarget, modalGradeTarget);
+                    handleExportUnpaid(modalMonthTarget, modalUnitTarget, modalGradeTarget, modalAccumulatePrevious);
                     setShowUnpaidExportModal(false);
                   }}
                   className={`flex items-center gap-2 px-5 py-2.5 text-white font-bold text-xs rounded-xl shadow-xs transition ${
@@ -1025,7 +1130,7 @@ export const PaymentRecapPage: React.FC = () => {
                   }`}
                 >
                   <Download className="w-4 h-4" />
-                  <span>Download File Excel</span>
+                  <span>Download Excel Tagihan SPP ({modalMatchingCount} Siswa)</span>
                 </button>
               </div>
             </div>
