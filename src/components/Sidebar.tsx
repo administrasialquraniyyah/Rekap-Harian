@@ -14,6 +14,7 @@ import {
   X
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import logoImg from '../assets/logo.png';
 
 export type MenuItemId =
   | 'dashboard'
@@ -71,9 +72,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {/* Brand Header */}
         <div className="p-5 border-b border-emerald-900/80 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-gold-400 to-emerald-600 flex items-center justify-center shadow-md shadow-emerald-950/50">
-              <GraduationCap className="w-6 h-6 text-emerald-950" />
-            </div>
+            <img
+              src={logoImg}
+              alt="Logo Al-Qur'aniyyah"
+              className="w-10 h-10 object-contain rounded-full bg-white p-0.5 shadow-md shadow-emerald-950/50"
+            />
             <div>
               <h1 className="font-bold text-base text-white tracking-wide leading-tight">
                 Al-Qur’aniyyah

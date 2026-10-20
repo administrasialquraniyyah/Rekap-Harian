@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { StudentCrossYearArrears } from '../types/database';
 import html2canvas from 'html2canvas';
+import logoImg from '../assets/logo.png';
 
 interface StudentArrearsCardModalProps {
   studentArrears: StudentCrossYearArrears;
@@ -212,18 +213,23 @@ export const StudentArrearsCardModal: React.FC<StudentArrearsCardModalProps> = (
             <div className="border-b-2 border-emerald-900 pb-4">
               <div className="flex items-center justify-between gap-4">
                 <div className="flex items-center gap-3.5">
-                  <div className="w-14 h-14 rounded-2xl bg-emerald-900 text-gold-400 flex items-center justify-center shrink-0 shadow-md">
-                    <GraduationCap className="w-8 h-8" />
+                  <div className="w-16 h-16 shrink-0 flex items-center justify-center">
+                    <img
+                      src={logoImg}
+                      alt="Logo Al-Qur'aniyyah"
+                      className="w-16 h-16 object-contain"
+                      crossOrigin="anonymous"
+                    />
                   </div>
                   <div>
                     <h2 className="text-base sm:text-lg font-black text-emerald-950 uppercase tracking-wide leading-tight">
-                      Yayasan Al-Qur'aniyyah
+                      Yayasan Pendidikan Islam Al-Qur'aniyyah
                     </h2>
-                    <h3 className="text-xs sm:text-sm font-bold text-slate-700 leading-tight">
-                      SMP IT & SMA IT Al-Qur'aniyyah
+                    <h3 className="text-xs sm:text-sm font-bold text-slate-800 leading-tight">
+                      Pondok Pesantren · SMP IT &amp; SMA IT Al-Qur'aniyyah
                     </h3>
                     <p className="text-[11px] text-slate-500 mt-0.5">
-                      Sistem Administrasi & Rekapitulasi Keuangan Santri Lintas Tahun
+                      Pondok Aren, Tangerang Selatan · Sistem Rekapitulasi Keuangan Santri Lintas Tahun
                     </p>
                   </div>
                 </div>
