@@ -47,7 +47,7 @@ export const StudentArrearsCardModal: React.FC<StudentArrearsCardModalProps> = (
     year: 'numeric'
   }).format(new Date());
 
-  // Download High-Res Screenshot as PNG
+  // Download High-Res Screenshot as PNG (Landscape)
   const handleDownloadImage = async () => {
     const cardElement = document.getElementById('student-arrears-printable-card');
     if (!cardElement) return;
@@ -59,16 +59,16 @@ export const StudentArrearsCardModal: React.FC<StudentArrearsCardModalProps> = (
         useCORS: true,
         backgroundColor: '#ffffff',
         logging: false,
-        windowWidth: 1024,
+        windowWidth: 1400,
       });
 
       const dataUrl = canvas.toDataURL('image/png');
       const link = document.createElement('a');
       const cleanName = student.full_name.replace(/[^a-zA-Z0-9]/g, '_');
-      link.download = `Kartu_Tunggakan_${cleanName}.png`;
+      link.download = `Kartu_Tunggakan_Landscape_${cleanName}.png`;
       link.href = dataUrl;
       link.click();
-      showToast('Gambar kartu tunggakan berhasil didownload (PNG)!', 'success');
+      showToast('Gambar kartu tunggakan (Landscape) berhasil didownload (PNG)!', 'success');
     } catch (err: any) {
       console.error('Failed to capture card:', err);
       showToast('Gagal membuat gambar kartu: ' + err.message, 'error');
@@ -77,7 +77,7 @@ export const StudentArrearsCardModal: React.FC<StudentArrearsCardModalProps> = (
     }
   };
 
-  // Copy High-Res Image directly to Clipboard (without download)
+  // Copy High-Res Image directly to Clipboard (Landscape, without download)
   const handleCopyImage = async () => {
     const cardElement = document.getElementById('student-arrears-printable-card');
     if (!cardElement) return;
@@ -94,7 +94,7 @@ export const StudentArrearsCardModal: React.FC<StudentArrearsCardModalProps> = (
         useCORS: true,
         backgroundColor: '#ffffff',
         logging: false,
-        windowWidth: 1024,
+        windowWidth: 1400,
       });
 
       canvas.toBlob(async (blob) => {
@@ -108,7 +108,7 @@ export const StudentArrearsCardModal: React.FC<StudentArrearsCardModalProps> = (
           const item = new ClipboardItem({ 'image/png': blob });
           await navigator.clipboard.write([item]);
           setImageCopied(true);
-          showToast('Gambar kartu berhasil disalin ke clipboard! Langsung tekan Ctrl + V di WhatsApp.', 'success');
+          showToast('Gambar kartu landscape berhasil disalin ke clipboard! Langsung tekan Ctrl + V di WhatsApp.', 'success');
           setTimeout(() => setImageCopied(false), 3000);
         } catch (clipErr: any) {
           console.error('Clipboard write error:', clipErr);
@@ -124,7 +124,7 @@ export const StudentArrearsCardModal: React.FC<StudentArrearsCardModalProps> = (
     }
   };
 
-  // Print or Save as PDF
+  // Print or Save as PDF (Landscape)
   const handlePrintPdf = () => {
     window.print();
   };
@@ -177,13 +177,13 @@ export const StudentArrearsCardModal: React.FC<StudentArrearsCardModalProps> = (
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 overflow-y-auto animate-fade-in">
-      <div className="bg-slate-100 rounded-2xl max-w-4xl w-full shadow-2xl border border-slate-300 max-h-[96vh] flex flex-col overflow-hidden my-auto">
+      <div className="bg-slate-100 rounded-2xl max-w-6xl w-full shadow-2xl border border-slate-300 max-h-[96vh] flex flex-col overflow-hidden my-auto">
         
         {/* Top Control Bar (Hidden on print) */}
         <div className="bg-white px-5 py-3 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3 shrink-0 no-print">
           <div>
             <span className="text-[10px] font-black uppercase tracking-wider text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full">
-              Card Siap Screenshot &amp; Cetak PDF
+              Format Landscape · Pas Lintas Tahun Ajaran
             </span>
             <h4 className="text-sm sm:text-base font-bold text-slate-800 mt-0.5">
               Rincian Tunggakan: <span className="text-emerald-900">{student.full_name}</span>
@@ -204,7 +204,7 @@ export const StudentArrearsCardModal: React.FC<StudentArrearsCardModalProps> = (
               {onlyUnpaid ? '⚠️ Hanya Belum Lunas' : '📋 Semua Item Tagihan'}
             </button>
 
-            {/* Copy Image directly to Clipboard (Tanpa Download) */}
+            {/* Copy Image directly to Clipboard (Landscape, Tanpa Download) */}
             <button
               onClick={handleCopyImage}
               disabled={isCopyingImage}
@@ -213,14 +213,14 @@ export const StudentArrearsCardModal: React.FC<StudentArrearsCardModalProps> = (
                   ? 'bg-emerald-600 hover:bg-emerald-700'
                   : 'bg-blue-600 hover:bg-blue-700'
               }`}
-              title="Salin gambar kartu langsung ke clipboard tanpa download (bisa langsung paste / Ctrl+V di WhatsApp)"
+              title="Salin gambar kartu landscape langsung ke clipboard tanpa download (bisa langsung paste / Ctrl+V di WhatsApp)"
             >
               {imageCopied ? (
                 <Check className="w-3.5 h-3.5 text-white" />
               ) : (
                 <ImageIcon className={`w-3.5 h-3.5 ${isCopyingImage ? 'animate-spin' : ''}`} />
               )}
-              <span>{isCopyingImage ? 'Menyalin...' : imageCopied ? 'Gambar Tersalin!' : 'Salin Gambar'}</span>
+              <span>{isCopyingImage ? 'Menyalin...' : imageCopied ? 'Gambar Tersalin!' : 'Salin Gambar (Landscape)'}</span>
             </button>
 
             {/* Copy WA Message */}
@@ -238,7 +238,7 @@ export const StudentArrearsCardModal: React.FC<StudentArrearsCardModalProps> = (
               onClick={handleDownloadImage}
               disabled={isCapturing}
               className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold transition shadow-xs disabled:opacity-50"
-              title="Download gambar kartu proporsional untuk dikirim ke WhatsApp"
+              title="Download gambar kartu landscape untuk dikirim ke WhatsApp"
             >
               <Camera className={`w-3.5 h-3.5 ${isCapturing ? 'animate-spin' : ''}`} />
               <span>{isCapturing ? 'Memproses...' : 'Download PNG'}</span>
@@ -248,10 +248,10 @@ export const StudentArrearsCardModal: React.FC<StudentArrearsCardModalProps> = (
             <button
               onClick={handlePrintPdf}
               className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-800 hover:bg-emerald-700 text-white text-xs font-bold transition shadow-xs"
-              title="Cetak langsung ke printer atau Simpan sebagai PDF A4"
+              title="Cetak langsung ke printer atau Simpan sebagai PDF A4 Landscape"
             >
               <Printer className="w-3.5 h-3.5 text-amber-300" />
-              <span>Cetak / PDF</span>
+              <span>Cetak / PDF (Landscape)</span>
             </button>
 
             <button
@@ -267,13 +267,14 @@ export const StudentArrearsCardModal: React.FC<StudentArrearsCardModalProps> = (
         {/* Card Scrollable Container */}
         <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-slate-200/60">
           
-          {/* THE OFFICIAL CARD (TARGET FOR SCREENSHOT & PRINT) */}
+          {/* THE OFFICIAL CARD (TARGET FOR SCREENSHOT & PRINT - LANDSCAPE LAYOUT) */}
           <div
             id="student-arrears-printable-card"
-            className="bg-white max-w-3xl w-full mx-auto p-6 sm:p-7 rounded-2xl border border-slate-300 shadow-md relative overflow-hidden text-slate-800"
+            style={{ width: '100%', maxWidth: '1050px' }}
+            className="bg-white mx-auto p-6 sm:p-8 rounded-2xl border border-slate-300 shadow-md relative overflow-hidden text-slate-800"
           >
-            {/* Watermark Stamp (Lunas / Belum Lunas) - Ditempatkan rapi di pojok kanan atas agar TIDAK MENABRAK JUDUL */}
-            <div className="absolute right-6 top-8 pointer-events-none opacity-20 rotate-[-10deg] select-none">
+            {/* Watermark Stamp (Lunas / Belum Lunas) - Di pojok kanan atas, tidak menabrak teks */}
+            <div className="absolute right-8 top-7 pointer-events-none opacity-20 rotate-[-10deg] select-none">
               <div
                 className={`border-3 border-dashed rounded-xl px-5 py-1.5 text-xl font-black uppercase tracking-widest ${
                   isLunas ? 'border-emerald-600 text-emerald-600' : 'border-rose-600 text-rose-600'
@@ -296,7 +297,7 @@ export const StudentArrearsCardModal: React.FC<StudentArrearsCardModalProps> = (
                     />
                   </div>
                   <div>
-                    <h2 className="text-sm sm:text-base font-black text-emerald-950 uppercase tracking-wide leading-tight">
+                    <h2 className="text-base sm:text-lg font-black text-emerald-950 uppercase tracking-wide leading-tight">
                       Yayasan Pendidikan Islam Al-Qur'aniyyah
                     </h2>
                     <h3 className="text-xs sm:text-sm font-bold text-slate-800 leading-tight">
@@ -322,8 +323,8 @@ export const StudentArrearsCardModal: React.FC<StudentArrearsCardModalProps> = (
               </div>
             </div>
 
-            {/* Document Title (Tanpa Tabrakan Watermark) */}
-            <div className="text-center my-3.5">
+            {/* Document Title */}
+            <div className="text-center my-3">
               <h4 className="text-sm sm:text-base font-black text-slate-800 uppercase tracking-wider">
                 Kartu Rincian Kewajiban &amp; Tunggakan Siswa
               </h4>
@@ -332,75 +333,86 @@ export const StudentArrearsCardModal: React.FC<StudentArrearsCardModalProps> = (
               </p>
             </div>
 
-            {/* Student Metadata Box */}
-            <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 mb-4">
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-                <div>
-                  <span className="text-slate-400 font-semibold block text-[10px] uppercase">Nama Santri/Siswa</span>
-                  <span className="font-bold text-slate-800 text-sm">{student.full_name}</span>
-                </div>
-                <div>
-                  <span className="text-slate-400 font-semibold block text-[10px] uppercase">NIS / No. Rekening</span>
-                  <span className="font-mono font-bold text-slate-700">{student.nis || '-'}</span>
-                </div>
-                <div>
-                  <span className="text-slate-400 font-semibold block text-[10px] uppercase">Jenjang / Kelas</span>
-                  <span className="font-bold text-emerald-900">
-                    {studentArrears.current_unit || 'SMP IT'} · Kelas {studentArrears.current_grade || '-'}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-slate-400 font-semibold block text-[10px] uppercase">No. WhatsApp / Wali</span>
-                  <span className="font-bold text-slate-700 flex items-center gap-1">
-                    <Phone className="w-3 h-3 text-emerald-700" />
-                    <span>{student.phone || '-'}</span>
-                  </span>
+            {/* Top Row in Landscape: Biodata Santri (Kiri) & Ringkasan KPI (Kanan) Side-by-Side */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5 mb-4">
+              
+              {/* Left: Student Metadata Box (7 Cols) */}
+              <div className="lg:col-span-7 bg-slate-50 border border-slate-200 rounded-xl p-3.5 flex flex-col justify-center">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                  <div>
+                    <span className="text-slate-400 font-semibold block text-[10px] uppercase">Nama Santri/Siswa</span>
+                    <span className="font-bold text-slate-800 text-sm leading-tight block">{student.full_name}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 font-semibold block text-[10px] uppercase">NIS / No. Rekening</span>
+                    <span className="font-mono font-bold text-slate-700 text-xs block">{student.nis || '-'}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 font-semibold block text-[10px] uppercase">Jenjang / Kelas</span>
+                    <span className="font-bold text-emerald-900 text-xs block">
+                      {studentArrears.current_unit || 'SMP IT'} · Kelas {studentArrears.current_grade || '-'}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 font-semibold block text-[10px] uppercase">No. WhatsApp / Wali</span>
+                    <span className="font-bold text-slate-700 flex items-center gap-1 text-xs">
+                      <Phone className="w-3 h-3 text-emerald-700 shrink-0" />
+                      <span>{student.phone || '-'}</span>
+                    </span>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {/* Grand Summary KPI Boxes */}
-            <div className="grid grid-cols-3 gap-3 mb-4">
-              <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-center">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Total Seluruh Tagihan</p>
-                <p className="text-sm sm:text-base font-black text-slate-800 mt-1 leading-normal">
-                  Rp{studentArrears.grand_total_bills.toLocaleString('id-ID')}
-                </p>
-              </div>
+              {/* Right: Grand Summary 3 KPI Boxes (5 Cols) */}
+              <div className="lg:col-span-5 grid grid-cols-3 gap-2">
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-center flex flex-col justify-center">
+                  <p className="text-[9.5px] font-bold uppercase tracking-wider text-slate-500">Total Tagihan</p>
+                  <p className="text-xs sm:text-sm font-black text-slate-800 mt-1 leading-normal">
+                    Rp{studentArrears.grand_total_bills.toLocaleString('id-ID')}
+                  </p>
+                </div>
 
-              <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-center">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-800">Total Telah Dibayar</p>
-                <p className="text-sm sm:text-base font-black text-emerald-700 mt-1 leading-normal">
-                  Rp{studentArrears.grand_total_paid.toLocaleString('id-ID')}
-                </p>
-              </div>
+                <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-2.5 text-center flex flex-col justify-center">
+                  <p className="text-[9.5px] font-bold uppercase tracking-wider text-emerald-800">Total Terbayar</p>
+                  <p className="text-xs sm:text-sm font-black text-emerald-700 mt-1 leading-normal">
+                    Rp{studentArrears.grand_total_paid.toLocaleString('id-ID')}
+                  </p>
+                </div>
 
-              <div
-                className={`rounded-xl p-3 text-center border ${
-                  isLunas ? 'bg-emerald-50 border-emerald-300' : 'bg-rose-50 border-rose-300'
-                }`}
-              >
-                <p
-                  className={`text-[10px] font-bold uppercase tracking-wider ${
-                    isLunas ? 'text-emerald-800' : 'text-rose-800'
+                <div
+                  className={`rounded-xl p-2.5 text-center border flex flex-col justify-center ${
+                    isLunas ? 'bg-emerald-50 border-emerald-300' : 'bg-rose-50 border-rose-300'
                   }`}
                 >
-                  Sisa Total Tunggakan
-                </p>
-                <p
-                  className={`text-base sm:text-lg font-black mt-1 leading-normal ${
-                    isLunas ? 'text-emerald-700' : 'text-rose-700'
-                  }`}
-                >
-                  Rp{grandTotal.toLocaleString('id-ID')}
-                </p>
+                  <p
+                    className={`text-[9.5px] font-bold uppercase tracking-wider ${
+                      isLunas ? 'text-emerald-800' : 'text-rose-800'
+                    }`}
+                  >
+                    Sisa Tunggakan
+                  </p>
+                  <p
+                    className={`text-xs sm:text-sm font-black mt-1 leading-normal ${
+                      isLunas ? 'text-emerald-700' : 'text-rose-700'
+                    }`}
+                  >
+                    Rp{grandTotal.toLocaleString('id-ID')}
+                  </p>
+                </div>
               </div>
+
             </div>
 
-            {/* Itemized Breakdown per Academic Year */}
-            <div className="space-y-4 mb-4">
+            {/* Itemized Breakdown per Academic Year (Landscape Grid for Multi-Year Support) */}
+            <div
+              className={`mb-4 ${
+                studentArrears.years.length > 1
+                  ? 'grid grid-cols-1 xl:grid-cols-2 gap-4'
+                  : 'space-y-4'
+              }`}
+            >
               {studentArrears.years.map((year) => {
-                // Urutkan bills secara kronologis: SPP (Juli s.d. Juni urut), kemudian non-SPP
+                // Urutkan bills secara kronologis: SPP (Juli s.d. Juni), kemudian non-SPP
                 const sortedBills = [...year.bills_detail].sort((a, b) => {
                   const isSppA = isSpp(a);
                   const isSppB = isSpp(b);
@@ -453,7 +465,7 @@ export const StudentArrearsCardModal: React.FC<StudentArrearsCardModalProps> = (
                       </div>
                     </div>
 
-                    {/* Table of Bills (Rapi dengan SPP urut Juli s/d Juni) */}
+                    {/* Table of Bills (Landscape: Kolom Lega & Status Tidak Bertumpuk) */}
                     <table className="w-full text-left border-collapse text-xs">
                       <thead>
                         <tr className="bg-slate-50/80 text-slate-500 font-bold border-b border-slate-200 text-[10px] uppercase">
@@ -462,7 +474,7 @@ export const StudentArrearsCardModal: React.FC<StudentArrearsCardModalProps> = (
                           <th className="py-2 px-3 text-right">Nominal Tagihan</th>
                           <th className="py-2 px-3 text-right">Telah Dibayar</th>
                           <th className="py-2 px-3 text-right">Sisa Belum Bayar</th>
-                          <th className="py-2 px-3 text-center w-28">Status</th>
+                          <th className="py-2 px-4 text-center whitespace-nowrap w-36">Status</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100 font-medium">
@@ -492,7 +504,7 @@ export const StudentArrearsCardModal: React.FC<StudentArrearsCardModalProps> = (
                             <td className="py-2 px-3 text-right text-emerald-700 font-semibold">
                               Rp{b.paid.toLocaleString('id-ID')}
                             </td>
-                            {/* Merah HANYA jika benar-benar ada sisa nunggak, jika Rp0 abu-abu netral */}
+                            {/* Merah HANYA jika benar-benar ada tunggakan, jika Rp0 abu-abu netral */}
                             <td
                               className={`py-2 px-3 text-right ${
                                 b.remaining > 0
@@ -502,9 +514,9 @@ export const StudentArrearsCardModal: React.FC<StudentArrearsCardModalProps> = (
                             >
                               Rp{b.remaining.toLocaleString('id-ID')}
                             </td>
-                            <td className="py-2 px-3 text-center">
+                            <td className="py-2 px-4 text-center whitespace-nowrap">
                               <span
-                                className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold ${
+                                className={`inline-block px-2.5 py-0.5 rounded text-[10px] font-bold whitespace-nowrap ${
                                   b.status === 'Lunas' || b.status === 'Bebas'
                                     ? 'bg-emerald-100 text-emerald-800'
                                     : b.status === 'Belum Lunas'
@@ -526,62 +538,67 @@ export const StudentArrearsCardModal: React.FC<StudentArrearsCardModalProps> = (
               })}
             </div>
 
-            {/* Informasi Rekening & Konfirmasi Transfer (Tema Asli, Rapi & Tidak Menumpuk) */}
-            <div className="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 rounded-xl p-3.5 mb-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-emerald-800 text-amber-300 flex items-center justify-center shrink-0">
-                    <Building2 className="w-5 h-5" />
+            {/* Bottom Row in Landscape: Rekening Bank (Kiri) & Tanda Tangan (Kanan) Side-by-Side */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5 items-end pt-2 border-t border-slate-200">
+              
+              {/* Left: Informasi Rekening Resmi Pembayaran (7 Cols) */}
+              <div className="lg:col-span-7 bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 rounded-xl p-3.5">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-emerald-800 text-amber-300 flex items-center justify-center shrink-0">
+                      <Building2 className="w-5 h-5" />
+                    </div>
+                    <div className="text-xs">
+                      <p className="font-black text-emerald-950">Rekening Resmi Pembayaran Sekolah:</p>
+                      <p className="text-slate-700 mt-0.5">
+                        Bank: <strong>Bank Syariah Indonesia (BSI)</strong> · No. Rek: <strong className="font-mono text-emerald-950 bg-emerald-100/80 px-1.5 py-0.5 rounded text-xs">7110256118</strong>
+                      </p>
+                      <p className="text-slate-600 mt-0.5">
+                        Atas Nama: <strong>Yayasan Al-Qur'aniyyah</strong>
+                      </p>
+                    </div>
                   </div>
-                  <div className="text-xs">
-                    <p className="font-black text-emerald-950">Rekening Resmi Pembayaran Sekolah:</p>
-                    <p className="text-slate-700 mt-0.5">
-                      Bank: <strong>Bank Syariah Indonesia (BSI)</strong> · No. Rek: <strong className="font-mono text-emerald-950 bg-emerald-100/80 px-1.5 py-0.5 rounded text-xs">7110256118</strong>
+
+                  <div className="text-right text-[11px] text-slate-500 border-t sm:border-t-0 sm:border-l border-emerald-200 pt-2 sm:pt-0 sm:pl-3 shrink-0">
+                    <p className="font-semibold text-emerald-950">Konfirmasi Bukti Transfer:</p>
+                    <p className="font-bold text-slate-800 text-xs flex items-center justify-end gap-1 mt-0.5">
+                      <Phone className="w-3 h-3 text-emerald-700" />
+                      <span>0857-1723-5374</span>
                     </p>
-                    <p className="text-slate-600 mt-0.5">
-                      Atas Nama: <strong>Yayasan Al-Qur'aniyyah</strong>
-                    </p>
+                    <p className="text-emerald-900 font-bold text-[11px] mt-0.5">Bendahara: Nasrulloh</p>
                   </div>
                 </div>
 
-                <div className="text-right text-[11px] text-slate-500 border-t sm:border-t-0 sm:border-l border-emerald-200 pt-2 sm:pt-0 sm:pl-4 shrink-0">
-                  <p className="font-semibold text-emerald-950">Konfirmasi Bukti Transfer:</p>
-                  <p className="font-bold text-slate-800 text-xs flex items-center justify-end gap-1 mt-0.5">
-                    <Phone className="w-3 h-3 text-emerald-700" />
-                    <span>0857-1723-5374</span>
+                <div className="mt-2 pt-2 border-t border-emerald-200/60 text-[10px] text-slate-400 space-y-0.5">
+                  <p>• Catatan: Simpan kartu ini sebagai bukti rincian tagihan resmi.</p>
+                  <p>• Dokumen ini dicetak otomatis dari Sistem Keuangan SIMKA Al-Qur'aniyyah.</p>
+                </div>
+              </div>
+
+              {/* Right: Tanda Tangan & Pengesahan (5 Cols) */}
+              <div className="lg:col-span-5 flex justify-end">
+                <div className="text-center w-56 bg-slate-50 border border-slate-200/80 rounded-xl p-3">
+                  <p className="text-[11px] text-slate-600 mb-0.5">
+                    Jakarta, {todayFormatted}
                   </p>
-                  <p className="text-emerald-900 font-bold text-[11px] mt-0.5">Bendahara: Nasrulloh</p>
+                  <p className="text-[11px] font-semibold text-slate-700">
+                    Bendahara Keuangan,
+                  </p>
+                  {/* Spacer for signature */}
+                  <div className="h-12 flex items-center justify-center">
+                    <span className="text-[10px] text-slate-300 italic select-none">
+                      [Tervalidasi Sistem]
+                    </span>
+                  </div>
+                  <p className="font-bold text-slate-900 text-xs border-t border-slate-300 pt-1">
+                    Nasrulloh
+                  </p>
+                  <p className="text-[10px] text-slate-500 font-medium">
+                    Bendahara Al-Qur'aniyyah
+                  </p>
                 </div>
               </div>
-            </div>
 
-            {/* Tanda Tangan & Footer Pengesahan */}
-            <div className="pt-2.5 border-t border-slate-200 flex items-end justify-between text-xs">
-              <div className="text-[10px] text-slate-400 space-y-0.5 max-w-xs">
-                <p>• Catatan: Simpan kartu ini sebagai bukti rincian tagihan resmi.</p>
-                <p>• Dokumen ini dicetak otomatis dari Sistem Keuangan SIMKA Al-Qur'aniyyah.</p>
-              </div>
-
-              <div className="text-center w-52">
-                <p className="text-[11px] text-slate-600 mb-0.5">
-                  Jakarta, {todayFormatted}
-                </p>
-                <p className="text-[11px] font-semibold text-slate-700">
-                  Bendahara Keuangan,
-                </p>
-                {/* Spacer for signature */}
-                <div className="h-12 flex items-center justify-center">
-                  <span className="text-[10px] text-slate-300 italic select-none">
-                    [Tervalidasi Sistem]
-                  </span>
-                </div>
-                <p className="font-bold text-slate-900 text-xs border-t border-slate-300 pt-1">
-                  Nasrulloh
-                </p>
-                <p className="text-[10px] text-slate-500 font-medium">
-                  Bendahara Al-Qur'aniyyah
-                </p>
-              </div>
             </div>
 
           </div>
@@ -590,7 +607,7 @@ export const StudentArrearsCardModal: React.FC<StudentArrearsCardModalProps> = (
         {/* Bottom Modal Actions */}
         <div className="bg-white px-5 py-3 border-t border-slate-200 flex items-center justify-between shrink-0 no-print">
           <p className="text-xs text-slate-500">
-            💡 <em>Tip: Klik tombol <strong>&ldquo;Salin Gambar&rdquo;</strong> lalu langsung tekan <strong>Ctrl + V</strong> di WhatsApp tanpa perlu download file.</em>
+            💡 <em>Format Landscape memudahkan tampilan santri yang memiliki rincian tagihan lintas beberapa tahun ajaran.</em>
           </p>
 
           <button
