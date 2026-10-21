@@ -178,10 +178,10 @@ export const StudentArrearsCardModal: React.FC<StudentArrearsCardModalProps> = (
 
   // Copy structured message for WhatsApp
   const handleCopyWhatsApp = () => {
-    let text = `*SURAT RINCIAN TUNGGAKAN SISWA*\n`;
+    let text = `*RINCIAN TUNGGAKAN SISWA*\n`;
     text += `*YAYASAN AL-QUR'ANIYYAH*\n`;
     text += `_SMP IT & SMA IT Al-Qur'aniyyah_\n`;
-    text += `========================================\n\n`;
+    text += `====================\n\n`;
     text += `Kepada Yth.\n`;
     text += `Orang Tua / Wali dari Ananda:\n`;
     text += `Nama Siswa : *${student.full_name}*\n`;
@@ -200,9 +200,9 @@ export const StudentArrearsCardModal: React.FC<StudentArrearsCardModalProps> = (
       }
     });
 
-    text += `----------------------------------------\n`;
+    text += `----------------------------------\n`;
     text += `*TOTAL SISA TUNGGAKAN: Rp${grandTotal.toLocaleString('id-ID')}*\n`;
-    text += `----------------------------------------\n\n`;
+    text += `----------------------------------\n\n`;
     text += `*Pembayaran dapat disalurkan melalui transfer:*\n`;
     text += `${paymentAccount.bankName}\n`;
     if (paymentAccount.isVirtualAccount) {
