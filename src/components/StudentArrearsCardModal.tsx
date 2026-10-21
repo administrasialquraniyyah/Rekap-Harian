@@ -206,10 +206,10 @@ export const StudentArrearsCardModal: React.FC<StudentArrearsCardModalProps> = (
     text += `*Pembayaran dapat disalurkan melalui transfer:*\n`;
     text += `${paymentAccount.bankName}\n`;
     if (paymentAccount.isVirtualAccount) {
-      text += `${paymentAccount.accountLabel} : *${paymentAccount.accountNumber}*\n`;
-      text += `Atas Nama (Otomatis)     : *${paymentAccount.accountHolder}*\n\n`;
+      text += `No. Virtual Account (VA) : *${paymentAccount.accountNumber}*\n`;
+      text += `Atas Nama    : *${paymentAccount.accountHolder}*\n\n`;
     } else {
-      text += `${paymentAccount.accountLabel} : *${paymentAccount.accountNumber}*\n`;
+      text += `No. Rekening : *${paymentAccount.accountNumber}*\n`;
       text += `Atas Nama    : *${paymentAccount.accountHolder}*\n\n`;
     }
     text += `Konfirmasi Bukti Transfer: *0857-1723-5374* (Bendahara: Nasrulloh)\n\n`;
@@ -615,11 +615,6 @@ export const StudentArrearsCardModal: React.FC<StudentArrearsCardModalProps> = (
                       </p>
                       <p className="text-slate-600 mt-0.5">
                         Atas Nama: <strong>{paymentAccount.accountHolder}</strong>
-                        {paymentAccount.isVirtualAccount && (
-                          <span className="ml-1 text-[10px] text-emerald-800 font-semibold">
-                            (Otomatis Siswa)
-                          </span>
-                        )}
                       </p>
                     </div>
                   </div>
