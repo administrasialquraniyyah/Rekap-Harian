@@ -397,7 +397,13 @@ export const StudentArrearsCardModal: React.FC<StudentArrearsCardModalProps> = (
                   </div>
                   <div>
                     <span className="text-slate-400 font-semibold block text-[10px] uppercase">NIS / No. Rekening</span>
-                    <span className="font-mono font-bold text-slate-700 text-xs block">{student.nis || '-'}</span>
+                    <span className="font-mono font-bold text-slate-700 text-xs block">
+                      {student.nis ? (
+                        student.nis
+                      ) : (
+                        <span className="text-amber-600 font-sans font-normal italic text-[11px]">Belum diisi</span>
+                      )}
+                    </span>
                   </div>
                   <div>
                     <span className="text-slate-400 font-semibold block text-[10px] uppercase">Jenjang / Kelas</span>
@@ -616,6 +622,11 @@ export const StudentArrearsCardModal: React.FC<StudentArrearsCardModalProps> = (
                       <p className="text-slate-600 mt-0.5">
                         Atas Nama: <strong>{paymentAccount.accountHolder}</strong>
                       </p>
+                      {!paymentAccount.isVirtualAccount && (
+                        <p className="text-[10px] text-amber-800 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded mt-1.5 inline-block font-medium">
+                          ⚠️ NIS santri belum diisi di menu Data Siswa (nomor VA otomatis aktif setelah NIS diisi).
+                        </p>
+                      )}
                     </div>
                   </div>
 
