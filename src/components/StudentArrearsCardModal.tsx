@@ -25,6 +25,52 @@ const SPP_MONTH_ORDER = [
   'januari', 'februari', 'maret', 'april', 'mei', 'juni'
 ];
 
+interface StudentPaymentAccount {
+  isVirtualAccount: boolean;
+  bankName: string;
+  accountLabel: string;
+  accountNumber: string;
+  accountHolder: string;
+}
+
+const getStudentPaymentAccount = (student: { full_name: string; nis?: string | null }): StudentPaymentAccount => {
+  const rawNis = (student.nis || '').trim();
+  const cleanNis = rawNis.replace(/[^0-9]/g, '');
+
+  if (cleanNis) {
+    // Jika NIS / Rekening diawali 103 atau 102 -> tambahkan prefix 9003189
+    if (cleanNis.startsWith('103') || cleanNis.startsWith('102') || cleanNis.startsWith('101')) {
+      return {
+        isVirtualAccount: true,
+        bankName: 'Bank Syariah Indonesia (BSI)',
+        accountLabel: 'No. Virtual Account (VA)',
+        accountNumber: `9003189${cleanNis}`,
+        accountHolder: student.full_name,
+      };
+    }
+
+    // Jika NIS / Rekening diawali 0011 dst -> tambahkan prefix 9001480
+    if (cleanNis.startsWith('0011') || cleanNis.startsWith('001')) {
+      return {
+        isVirtualAccount: true,
+        bankName: 'Bank Syariah Indonesia (BSI)',
+        accountLabel: 'No. Virtual Account (VA)',
+        accountNumber: `9001480${cleanNis}`,
+        accountHolder: student.full_name,
+      };
+    }
+  }
+
+  // Fallback rekening resmi yayasan jika santri belum memiliki nomor VA / NIS
+  return {
+    isVirtualAccount: false,
+    bankName: 'Bank Syariah Indonesia (BSI)',
+    accountLabel: 'No. Rekening',
+    accountNumber: '7110256118',
+    accountHolder: "Yayasan Al-Qur'aniyyah",
+  };
+};
+
 export const StudentArrearsCardModal: React.FC<StudentArrearsCardModalProps> = ({
   studentArrears,
   onClose,
@@ -39,6 +85,7 @@ export const StudentArrearsCardModal: React.FC<StudentArrearsCardModalProps> = (
   const student = studentArrears.student;
   const grandTotal = studentArrears.grand_total_arrears;
   const isLunas = grandTotal === 0;
+  const paymentAccount = getStudentPaymentAccount(student);
 
   // Format today's date in Indonesian
   const todayFormatted = new Intl.DateTimeFormat('id-ID', {
@@ -157,9 +204,14 @@ export const StudentArrearsCardModal: React.FC<StudentArrearsCardModalProps> = (
     text += `*TOTAL SISA TUNGGAKAN: Rp${grandTotal.toLocaleString('id-ID')}*\n`;
     text += `----------------------------------------\n\n`;
     text += `*Pembayaran dapat disalurkan melalui transfer:*\n`;
-    text += `Bank Syariah Indonesia (BSI)\n`;
-    text += `No. Rekening : *7110256118*\n`;
-    text += `Atas Nama    : *Yayasan Al-Qur'aniyyah*\n\n`;
+    text += `${paymentAccount.bankName}\n`;
+    if (paymentAccount.isVirtualAccount) {
+      text += `${paymentAccount.accountLabel} : *${paymentAccount.accountNumber}*\n`;
+      text += `Atas Nama (Otomatis)     : *${paymentAccount.accountHolder}*\n\n`;
+    } else {
+      text += `${paymentAccount.accountLabel} : *${paymentAccount.accountNumber}*\n`;
+      text += `Atas Nama    : *${paymentAccount.accountHolder}*\n\n`;
+    }
     text += `Konfirmasi Bukti Transfer: *0857-1723-5374* (Bendahara: Nasrulloh)\n\n`;
     text += `Mohon kirimkan bukti transfer setelah melakukan pembayaran. Jazakumullahu khairan. 🙏\n\n`;
     text += `_Bendahara Yayasan Al-Qur'aniyyah - Nasrulloh_`;
@@ -549,12 +601,25 @@ export const StudentArrearsCardModal: React.FC<StudentArrearsCardModalProps> = (
                       <Building2 className="w-5 h-5" />
                     </div>
                     <div className="text-xs">
-                      <p className="font-black text-emerald-950">Rekening Resmi Pembayaran Sekolah:</p>
+                      <p className="font-black text-emerald-950">
+                        {paymentAccount.isVirtualAccount
+                          ? 'Rekening Virtual Account (VA) Siswa:'
+                          : 'Rekening Resmi Pembayaran Sekolah:'}
+                      </p>
                       <p className="text-slate-700 mt-0.5">
-                        Bank: <strong>Bank Syariah Indonesia (BSI)</strong> · No. Rek: <strong className="font-mono text-emerald-950 bg-emerald-100/80 px-1.5 py-0.5 rounded text-xs">7110256118</strong>
+                        Bank: <strong>{paymentAccount.bankName}</strong> ·{' '}
+                        {paymentAccount.isVirtualAccount ? 'No. VA' : 'No. Rek'}:{' '}
+                        <strong className="font-mono text-emerald-950 bg-emerald-100/80 px-1.5 py-0.5 rounded text-xs">
+                          {paymentAccount.accountNumber}
+                        </strong>
                       </p>
                       <p className="text-slate-600 mt-0.5">
-                        Atas Nama: <strong>Yayasan Al-Qur'aniyyah</strong>
+                        Atas Nama: <strong>{paymentAccount.accountHolder}</strong>
+                        {paymentAccount.isVirtualAccount && (
+                          <span className="ml-1 text-[10px] text-emerald-800 font-semibold">
+                            (Otomatis Siswa)
+                          </span>
+                        )}
                       </p>
                     </div>
                   </div>
