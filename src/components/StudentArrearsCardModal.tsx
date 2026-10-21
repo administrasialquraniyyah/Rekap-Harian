@@ -9,7 +9,8 @@ import {
   Phone,
   Building2,
   Layers,
-  ListOrdered
+  ListOrdered,
+  Image as ImageIcon
 } from 'lucide-react';
 import { StudentCrossYearArrears } from '../types/database';
 import html2canvas from 'html2canvas';
@@ -47,6 +48,8 @@ export const StudentArrearsCardModal: React.FC<StudentArrearsCardModalProps> = (
   showToast,
 }) => {
   const [isCapturing, setIsCapturing] = useState(false);
+  const [isCopyingImage, setIsCopyingImage] = useState(false);
+  const [imageCopied, setImageCopied] = useState(false);
   const [onlyUnpaid, setOnlyUnpaid] = useState(false);
   const [viewMode, setViewMode] = useState<'compact' | 'detailed'>('compact');
   const [copied, setCopied] = useState(false);
@@ -88,6 +91,52 @@ export const StudentArrearsCardModal: React.FC<StudentArrearsCardModalProps> = (
       showToast('Gagal membuat gambar kartu: ' + err.message, 'error');
     } finally {
       setIsCapturing(false);
+    }
+  };
+
+  // Copy High-Res Image directly to Clipboard (without download)
+  const handleCopyImage = async () => {
+    const cardElement = document.getElementById('student-arrears-printable-card');
+    if (!cardElement) return;
+
+    if (!navigator.clipboard || !window.ClipboardItem) {
+      showToast('Browser Anda tidak mendukung salin gambar langsung. Silakan gunakan Download PNG.', 'error');
+      return;
+    }
+
+    setIsCopyingImage(true);
+    try {
+      const canvas = await html2canvas(cardElement, {
+        scale: 2, // High resolution for crisp text & borders
+        useCORS: true,
+        backgroundColor: '#ffffff',
+        logging: false,
+      });
+
+      canvas.toBlob(async (blob) => {
+        if (!blob) {
+          showToast('Gagal memproses gambar untuk disalin', 'error');
+          setIsCopyingImage(false);
+          return;
+        }
+
+        try {
+          const item = new ClipboardItem({ 'image/png': blob });
+          await navigator.clipboard.write([item]);
+          setImageCopied(true);
+          showToast('Gambar kartu berhasil disalin ke clipboard! Langsung tekan Ctrl + V di WhatsApp.', 'success');
+          setTimeout(() => setImageCopied(false), 3000);
+        } catch (clipErr: any) {
+          console.error('Clipboard write error:', clipErr);
+          showToast('Izin clipboard ditolak. Silakan gunakan tombol Download PNG.', 'error');
+        } finally {
+          setIsCopyingImage(false);
+        }
+      }, 'image/png');
+    } catch (err: any) {
+      console.error('Failed to copy card image:', err);
+      showToast('Gagal menyalin gambar: ' + err.message, 'error');
+      setIsCopyingImage(false);
     }
   };
 
@@ -193,6 +242,25 @@ export const StudentArrearsCardModal: React.FC<StudentArrearsCardModalProps> = (
               title="Filter tampilan: Hanya yang belum lunas"
             >
               {onlyUnpaid ? '⚠️ Hanya Menunggak' : 'Semua Tagihan'}
+            </button>
+
+            {/* Copy Image directly to Clipboard (Tanpa Download) */}
+            <button
+              onClick={handleCopyImage}
+              disabled={isCopyingImage}
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-white text-[11px] font-bold transition shadow-2xs disabled:opacity-50 ${
+                imageCopied
+                  ? 'bg-emerald-600 hover:bg-emerald-700'
+                  : 'bg-blue-600 hover:bg-blue-700'
+              }`}
+              title="Salin gambar kartu langsung ke clipboard tanpa download (bisa langsung paste / Ctrl+V di WhatsApp)"
+            >
+              {imageCopied ? (
+                <Check className="w-3.5 h-3.5 text-white" />
+              ) : (
+                <ImageIcon className={`w-3.5 h-3.5 ${isCopyingImage ? 'animate-spin' : ''}`} />
+              )}
+              <span>{isCopyingImage ? 'Menyalin...' : imageCopied ? 'Gambar Tersalin!' : 'Salin Gambar'}</span>
             </button>
 
             {/* Copy WA Message */}
@@ -621,7 +689,7 @@ export const StudentArrearsCardModal: React.FC<StudentArrearsCardModalProps> = (
         {/* Bottom Modal Actions */}
         <div className="bg-white px-4 py-2.5 border-t border-slate-200 flex items-center justify-between shrink-0 no-print">
           <p className="text-[11px] text-slate-500">
-            💡 <em>Mode Ringkas merangkum 12 bulan SPP agar pas 1 lembar tanpa baris bertumpuk.</em>
+            💡 <em>Tip: Klik <strong>&ldquo;Salin Gambar&rdquo;</strong> lalu langsung buka WhatsApp dan tekan <strong>Ctrl + V</strong> untuk kirim kartu tanpa harus download file.</em>
           </p>
 
           <button
