@@ -7,7 +7,6 @@ import {
   Check,
   Calendar,
   Phone,
-  Building2,
   Layers,
   ListOrdered,
   Image as ImageIcon
@@ -26,21 +25,6 @@ const SPP_MONTH_ORDER = [
   'juli', 'agustus', 'september', 'oktober', 'november', 'desember',
   'januari', 'februari', 'maret', 'april', 'mei', 'juni'
 ];
-
-const SHORT_MONTHS: Record<string, string> = {
-  juli: 'Jul',
-  agustus: 'Ags',
-  september: 'Sep',
-  oktober: 'Okt',
-  november: 'Nov',
-  desember: 'Des',
-  januari: 'Jan',
-  februari: 'Feb',
-  maret: 'Mar',
-  april: 'Apr',
-  mei: 'Mei',
-  juni: 'Jun'
-};
 
 export const StudentArrearsCardModal: React.FC<StudentArrearsCardModalProps> = ({
   studentArrears,
@@ -77,6 +61,7 @@ export const StudentArrearsCardModal: React.FC<StudentArrearsCardModalProps> = (
         useCORS: true,
         backgroundColor: '#ffffff',
         logging: false,
+        windowWidth: 1024,
       });
 
       const dataUrl = canvas.toDataURL('image/png');
@@ -100,7 +85,7 @@ export const StudentArrearsCardModal: React.FC<StudentArrearsCardModalProps> = (
     if (!cardElement) return;
 
     if (!navigator.clipboard || !window.ClipboardItem) {
-      showToast('Browser Anda tidak mendukung salin gambar langsung. Silakan gunakan Download PNG.', 'error');
+      showToast('Browser Anda tidak mendukung salin gambar langsung. Silakan gunakan tombol Download PNG.', 'error');
       return;
     }
 
@@ -111,6 +96,7 @@ export const StudentArrearsCardModal: React.FC<StudentArrearsCardModalProps> = (
         useCORS: true,
         backgroundColor: '#ffffff',
         logging: false,
+        windowWidth: 1024,
       });
 
       canvas.toBlob(async (blob) => {
@@ -212,7 +198,7 @@ export const StudentArrearsCardModal: React.FC<StudentArrearsCardModalProps> = (
                     ? 'bg-white text-emerald-900 shadow-2xs'
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
-                title="Tampilan ringkas 1 halaman (SPP 1 baris + tracker bulanan)"
+                title="Tampilan ringkas 1 halaman (SPP dirangkum rapi)"
               >
                 <Layers className="w-3 h-3 text-emerald-700" />
                 <span>Ringkas (1 Lembar)</span>
@@ -310,20 +296,10 @@ export const StudentArrearsCardModal: React.FC<StudentArrearsCardModalProps> = (
           {/* THE OFFICIAL CARD (TARGET FOR SCREENSHOT & PRINT) */}
           <div
             id="student-arrears-printable-card"
-            className="bg-white max-w-2xl w-full mx-auto p-5 sm:p-6 rounded-2xl border border-slate-300 shadow-sm relative overflow-hidden text-slate-800"
+            style={{ width: '100%', maxWidth: '700px' }}
+            className="bg-white mx-auto p-5 sm:p-6 rounded-2xl border border-slate-300 shadow-sm relative text-slate-800"
           >
-            {/* Watermark Stamp (Lunas / Belum Lunas) */}
-            <div className="absolute right-6 top-20 pointer-events-none opacity-15 rotate-[-12deg] select-none">
-              <div
-                className={`border-3 border-dashed rounded-xl px-4 py-1.5 text-xl font-black uppercase tracking-widest ${
-                  isLunas ? 'border-emerald-600 text-emerald-600' : 'border-rose-600 text-rose-600'
-                }`}
-              >
-                {isLunas ? 'LUNAS' : 'BELUM LUNAS'}
-              </div>
-            </div>
-
-            {/* Kop Surat Ramping (Tidak Menumpuk) */}
+            {/* Kop Surat Ramping */}
             <div className="border-b border-emerald-900/40 pb-2.5">
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
@@ -357,62 +333,90 @@ export const StudentArrearsCardModal: React.FC<StudentArrearsCardModalProps> = (
             </div>
 
             {/* Document Title (Single Clean Line) */}
-            <div className="text-center my-2.5">
+            <div className="text-center my-3">
               <h4 className="text-xs sm:text-sm font-black text-slate-800 uppercase tracking-wider">
                 Kartu Rincian Kewajiban &amp; Tunggakan Siswa
               </h4>
             </div>
 
-            {/* Student Biodata & Financial Summary (Unified Sleek Box) */}
-            <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 mb-3">
-              <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5 items-center">
-                
+            {/* Student Biodata & Status Badge */}
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 mb-2.5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
                 {/* Left: Student Identity */}
-                <div className="sm:col-span-7 space-y-1">
-                  <div className="flex items-center gap-1.5 flex-wrap">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-[10px] font-bold uppercase text-slate-400">Santri:</span>
                     <span className="font-bold text-slate-900 text-xs sm:text-sm">{student.full_name}</span>
                     {student.nis && (
-                      <span className="text-[10px] font-mono text-slate-500 bg-white border border-slate-200 px-1.5 py-0.2 rounded">
+                      <span className="text-[10px] font-mono text-slate-500 bg-white border border-slate-200 px-1.5 py-0.5 rounded">
                         NIS: {student.nis}
                       </span>
                     )}
                   </div>
-                  <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] text-slate-600">
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-slate-600">
                     <span>
                       Kelas: <strong className="text-emerald-900 font-semibold">{studentArrears.current_unit || 'SMP IT'} · Kelas {studentArrears.current_grade || '-'}</strong>
                     </span>
                     {student.phone && (
                       <span className="flex items-center gap-1 text-slate-500">
-                        <Phone className="w-2.5 h-2.5 text-emerald-700" />
+                        <Phone className="w-3 h-3 text-emerald-700" />
                         <span>{student.phone}</span>
                       </span>
                     )}
                   </div>
                 </div>
 
-                {/* Right: Financial 3 KPI Mini-Cards */}
-                <div className="sm:col-span-5 grid grid-cols-3 gap-1.5">
-                  <div className="bg-white border border-slate-200 rounded-lg p-1.5 text-center">
-                    <p className="text-[9px] font-bold text-slate-400 uppercase">Tagihan</p>
-                    <p className="text-[11px] font-bold text-slate-800 truncate" title={`Rp${studentArrears.grand_total_bills.toLocaleString('id-ID')}`}>
-                      Rp{studentArrears.grand_total_bills.toLocaleString('id-ID')}
-                    </p>
-                  </div>
-                  <div className="bg-white border border-slate-200 rounded-lg p-1.5 text-center">
-                    <p className="text-[9px] font-bold text-emerald-700 uppercase">Terbayar</p>
-                    <p className="text-[11px] font-bold text-emerald-700 truncate" title={`Rp${studentArrears.grand_total_paid.toLocaleString('id-ID')}`}>
-                      Rp{studentArrears.grand_total_paid.toLocaleString('id-ID')}
-                    </p>
-                  </div>
-                  <div className={`rounded-lg p-1.5 text-center border ${isLunas ? 'bg-emerald-50 border-emerald-300' : 'bg-rose-50 border-rose-300'}`}>
-                    <p className={`text-[9px] font-bold uppercase ${isLunas ? 'text-emerald-700' : 'text-rose-700'}`}>Tunggakan</p>
-                    <p className={`text-[11px] font-black truncate ${isLunas ? 'text-emerald-700' : 'text-rose-700'}`} title={`Rp${grandTotal.toLocaleString('id-ID')}`}>
-                      Rp{grandTotal.toLocaleString('id-ID')}
-                    </p>
-                  </div>
+                {/* Right: Clean Official Status Badge */}
+                <div className="shrink-0">
+                  <span
+                    className={`inline-flex items-center gap-1 px-3 py-1 rounded-lg border font-black text-[11px] uppercase tracking-wider ${
+                      isLunas
+                        ? 'bg-emerald-100 border-emerald-300 text-emerald-800'
+                        : 'bg-rose-100 border-rose-300 text-rose-800'
+                    }`}
+                  >
+                    <span>●</span>
+                    <span>{isLunas ? 'STATUS: LUNAS' : 'STATUS: BELUM LUNAS'}</span>
+                  </span>
                 </div>
+              </div>
+            </div>
 
+            {/* 3 KPI Cards: Tagihan, Terbayar, Tunggakan (Spacious & Clean, Digits NEVER Clipped) */}
+            <div className="grid grid-cols-3 gap-2.5 mb-3">
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-center">
+                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Total Tagihan</p>
+                <p className="text-xs sm:text-sm font-black text-slate-800 mt-1 leading-normal">
+                  Rp{studentArrears.grand_total_bills.toLocaleString('id-ID')}
+                </p>
+              </div>
+
+              <div className="bg-emerald-50/70 border border-emerald-200 rounded-xl p-2.5 text-center">
+                <p className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider">Total Terbayar</p>
+                <p className="text-xs sm:text-sm font-black text-emerald-700 mt-1 leading-normal">
+                  Rp{studentArrears.grand_total_paid.toLocaleString('id-ID')}
+                </p>
+              </div>
+
+              <div
+                className={`rounded-xl p-2.5 text-center border ${
+                  isLunas ? 'bg-emerald-50 border-emerald-300' : 'bg-rose-50 border-rose-200'
+                }`}
+              >
+                <p
+                  className={`text-[10px] font-bold uppercase tracking-wider ${
+                    isLunas ? 'text-emerald-800' : 'text-rose-800'
+                  }`}
+                >
+                  Sisa Tunggakan
+                </p>
+                <p
+                  className={`text-xs sm:text-sm font-black mt-1 leading-normal ${
+                    isLunas ? 'text-emerald-700' : 'text-rose-700'
+                  }`}
+                >
+                  Rp{grandTotal.toLocaleString('id-ID')}
+                </p>
               </div>
             </div>
 
@@ -453,7 +457,7 @@ export const StudentArrearsCardModal: React.FC<StudentArrearsCardModalProps> = (
                 }> = [];
 
                 if (viewMode === 'compact') {
-                  // If compact mode: aggregate SPP into 1 row
+                  // If compact mode: aggregate SPP into 1 clean summary row
                   if (sppBills.length > 0) {
                     const shouldShowSpp = !onlyUnpaid || totalSppRemaining > 0;
                     if (shouldShowSpp) {
@@ -517,7 +521,7 @@ export const StudentArrearsCardModal: React.FC<StudentArrearsCardModalProps> = (
                     className="border border-slate-200 rounded-xl overflow-hidden shadow-2xs"
                   >
                     {/* Header per Tahun Ajaran */}
-                    <div className="bg-slate-100/80 px-3 py-1.5 border-b border-slate-200 flex flex-wrap items-center justify-between gap-1.5">
+                    <div className="bg-slate-100/90 px-3 py-1.5 border-b border-slate-200 flex flex-wrap items-center justify-between gap-1.5">
                       <div className="flex items-center gap-1.5">
                         <Calendar className="w-3.5 h-3.5 text-emerald-800" />
                         <span className="font-bold text-[11px] text-slate-800">
@@ -548,12 +552,12 @@ export const StudentArrearsCardModal: React.FC<StudentArrearsCardModalProps> = (
                     <table className="w-full text-left border-collapse text-[11px]">
                       <thead>
                         <tr className="bg-slate-50 text-slate-500 font-bold border-b border-slate-200 text-[9px] uppercase tracking-wider">
-                          <th className="py-1.5 px-2.5 w-6 text-center">No</th>
-                          <th className="py-1.5 px-2.5">Item Tagihan</th>
-                          <th className="py-1.5 px-2 text-right">Nominal</th>
-                          <th className="py-1.5 px-2 text-right">Terbayar</th>
-                          <th className="py-1.5 px-2 text-right">Sisa Belum Bayar</th>
-                          <th className="py-1.5 px-2.5 text-center w-24">Status</th>
+                          <th className="py-2 px-2.5 w-7 text-center">No</th>
+                          <th className="py-2 px-2.5">Item Tagihan</th>
+                          <th className="py-2 px-2 text-right">Nominal</th>
+                          <th className="py-2 px-2 text-right">Terbayar</th>
+                          <th className="py-2 px-2 text-right">Sisa Belum Bayar</th>
+                          <th className="py-2 px-2.5 text-center w-24">Status</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100 font-medium">
@@ -566,10 +570,10 @@ export const StudentArrearsCardModal: React.FC<StudentArrearsCardModalProps> = (
                                 : 'bg-white hover:bg-slate-50/50'
                             }
                           >
-                            <td className="py-1.5 px-2.5 text-center text-slate-400 font-mono text-[10px]">
+                            <td className="py-2 px-2.5 text-center text-slate-400 font-mono text-[10px]">
                               {idx + 1}
                             </td>
-                            <td className="py-1.5 px-2.5">
+                            <td className="py-2 px-2.5">
                               <span className="font-bold text-slate-800">{r.name}</span>
                               {r.period && (
                                 <span className="font-semibold text-emerald-900 ml-1">
@@ -577,45 +581,58 @@ export const StudentArrearsCardModal: React.FC<StudentArrearsCardModalProps> = (
                                 </span>
                               )}
 
-                              {/* SPP Compact Months Chip Tracker */}
+                              {/* Clean, Non-wrapping SPP breakdown in Compact Mode */}
                               {r.isSppSummary && r.sppList && (
-                                <div className="flex flex-wrap items-center gap-1 mt-1">
-                                  {r.sppList.map((sb) => {
-                                    const mKey = (sb.billing_period || '').toLowerCase();
-                                    const shortName = SHORT_MONTHS[mKey] || sb.billing_period || 'Bln';
-                                    const isPaid = sb.status === 'Lunas' || sb.status === 'Bebas';
-                                    const isDue = sb.remaining > 0;
+                                <div className="text-[10px] text-slate-500 mt-0.5 leading-snug">
+                                  {(() => {
+                                    const paidMonths = r.sppList
+                                      .filter((sb) => sb.status === 'Lunas' || sb.status === 'Bebas')
+                                      .map((sb) => sb.billing_period);
+                                    const dueMonths = r.sppList
+                                      .filter((sb) => sb.remaining > 0)
+                                      .map((sb) => sb.billing_period);
+                                    const upcomingMonths = r.sppList
+                                      .filter((sb) => sb.status === 'Akan Berlangsung')
+                                      .map((sb) => sb.billing_period);
 
                                     return (
-                                      <span
-                                        key={sb.bill_id}
-                                        title={`${sb.billing_period}: ${sb.status} (${sb.remaining > 0 ? `Sisa: Rp${sb.remaining.toLocaleString('id-ID')}` : 'Rp0'})`}
-                                        className={`inline-flex items-center gap-0.5 px-1 py-0.2 rounded text-[8.5px] font-bold border ${
-                                          isPaid
-                                            ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
-                                            : isDue
-                                            ? 'bg-rose-100 text-rose-800 border-rose-300'
-                                            : 'bg-slate-100 text-slate-500 border-slate-200'
-                                        }`}
-                                      >
-                                        <span>{shortName}</span>
-                                        <span>{isPaid ? '✓' : isDue ? '✕' : '•'}</span>
-                                      </span>
+                                      <div className="space-y-0.5">
+                                        {paidMonths.length > 0 && (
+                                          <p className="text-emerald-700 font-medium">
+                                            ✓ Lunas ({paidMonths.length} bln): {paidMonths[0]} s/d {paidMonths[paidMonths.length - 1]}
+                                          </p>
+                                        )}
+                                        {dueMonths.length > 0 && (
+                                          <p className="text-rose-600 font-bold">
+                                            ✕ Menunggak ({dueMonths.length} bln): {dueMonths.join(', ')}
+                                          </p>
+                                        )}
+                                        {upcomingMonths.length > 0 && (
+                                          <p className="text-slate-400">
+                                            • Belum jatuh tempo: {upcomingMonths[0]} s/d {upcomingMonths[upcomingMonths.length - 1]}
+                                          </p>
+                                        )}
+                                      </div>
                                     );
-                                  })}
+                                  })()}
                                 </div>
                               )}
                             </td>
-                            <td className="py-1.5 px-2 text-right text-slate-600">
+                            <td className="py-2 px-2 text-right text-slate-600">
                               Rp{r.amount.toLocaleString('id-ID')}
                             </td>
-                            <td className="py-1.5 px-2 text-right text-emerald-700 font-semibold">
+                            <td className="py-2 px-2 text-right text-emerald-700 font-semibold">
                               Rp{r.paid.toLocaleString('id-ID')}
                             </td>
-                            <td className="py-1.5 px-2 text-right font-bold text-rose-600">
+                            {/* Color remaining in RED only if remaining > 0, otherwise neutral grey */}
+                            <td
+                              className={`py-2 px-2 text-right ${
+                                r.remaining > 0 ? 'font-bold text-rose-600' : 'text-slate-400 font-medium'
+                              }`}
+                            >
                               Rp{r.remaining.toLocaleString('id-ID')}
                             </td>
-                            <td className="py-1.5 px-2.5 text-center">
+                            <td className="py-2 px-2.5 text-center">
                               <span
                                 className={`inline-block px-1.5 py-0.5 rounded text-[9px] font-bold ${
                                   r.status === 'Lunas' || r.status.startsWith('Lunas') || r.status === 'Bebas'
@@ -639,18 +656,18 @@ export const StudentArrearsCardModal: React.FC<StudentArrearsCardModalProps> = (
               })}
             </div>
 
-            {/* Informasi Rekening Bank (Sleek Horizontal Bar, Tidak Menumpuk) */}
-            <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 bg-emerald-50/80 border border-emerald-200/80 rounded-xl text-xs mb-3">
+            {/* Informasi Rekening Bank (Clean Horizontal Bar) */}
+            <div className="flex flex-wrap items-center justify-between gap-2 px-3.5 py-2.5 bg-emerald-50 border border-emerald-200/80 rounded-xl text-xs mb-3">
               <div className="flex items-center gap-2">
-                <div className="w-6 h-6 rounded-md bg-emerald-800 text-amber-300 flex items-center justify-center font-bold text-[10px] shrink-0">
+                <div className="w-6 h-6 rounded bg-emerald-800 text-amber-300 flex items-center justify-center font-bold text-[10px] shrink-0">
                   BSI
                 </div>
-                <span className="text-slate-700 text-[11px]">
-                  Bank BSI: <strong className="font-mono text-emerald-950 font-bold bg-white px-1.5 py-0.5 rounded border border-emerald-200">7110256118</strong> a.n. <strong>Yayasan Al-Qur'aniyyah</strong>
-                </span>
+                <div className="text-[11px] text-slate-700">
+                  Bank Syariah Indonesia (BSI) · No. Rek: <span className="font-mono font-bold text-emerald-950">7110256118</span> a.n. <strong>Yayasan Al-Qur'aniyyah</strong>
+                </div>
               </div>
               <div className="flex items-center gap-1 text-slate-600 text-[11px]">
-                <Phone className="w-3 h-3 text-emerald-700 shrink-0" />
+                <Phone className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
                 <span>Konfirmasi WA: <strong className="text-slate-800 font-bold">0857-1723-5374</strong> (Ust. Nasrulloh)</span>
               </div>
             </div>
