@@ -129,38 +129,61 @@ export const arrearsService = {
     }
 
     try {
-      let studentQuery = supabase
-        .from('students')
-        .select(`
-          *,
-          student_enrollments(
-            id,
-            unit,
-            grade,
-            administrative_status,
-            academic_year_id,
-            academic_years(
+      let allStudentsData: any[] = [];
+      let sPage = 0;
+      const sPageSize = 1000;
+      let sHasMore = true;
+
+      while (sHasMore) {
+        const from = sPage * sPageSize;
+        const to = from + sPageSize - 1;
+
+        let studentQuery = supabase
+          .from('students')
+          .select(`
+            *,
+            student_enrollments(
               id,
-              name,
-              status,
-              start_date
+              unit,
+              grade,
+              administrative_status,
+              academic_year_id,
+              academic_years(
+                id,
+                name,
+                status,
+                start_date
+              )
             )
-          )
-        `)
-        .order('full_name', { ascending: true });
+          `)
+          .order('full_name', { ascending: true });
 
-      if (filters.studentId) {
-        studentQuery = studentQuery.eq('id', filters.studentId);
+        if (filters.studentId) {
+          studentQuery = studentQuery.eq('id', filters.studentId);
+        }
+
+        if (filters.search) {
+          const term = `%${filters.search}%`;
+          studentQuery = studentQuery.or(`full_name.ilike.${term},nis.ilike.${term}`);
+        }
+
+        studentQuery = studentQuery.range(from, to);
+        const { data: students, error: studentError } = await studentQuery;
+        if (studentError) throw studentError;
+
+        if (students && students.length > 0) {
+          allStudentsData = allStudentsData.concat(students);
+          if (students.length < sPageSize) {
+            sHasMore = false;
+          } else {
+            sPage++;
+          }
+        } else {
+          sHasMore = false;
+        }
       }
 
-      if (filters.search) {
-        const term = `%${filters.search}%`;
-        studentQuery = studentQuery.or(`full_name.ilike.${term},nis.ilike.${term}`);
-      }
-
-      studentQuery = studentQuery.range(0, 4999);
-      const { data: students, error: studentError } = await studentQuery;
-      if (studentError) throw studentError;
+      const students = allStudentsData;
 
       let allBillsData: any[] = [];
       let page = 0;

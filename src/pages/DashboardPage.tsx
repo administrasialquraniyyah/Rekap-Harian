@@ -133,28 +133,46 @@ export const DashboardPage: React.FC = () => {
       } else {
         // Fast & reliable flat queries to Supabase
         // 1. Enrollments
-        const { data: enrollments, error: enrErr } = await supabase
-          .from('student_enrollments')
-          .select(`
-            id,
-            student_id,
-            unit,
-            grade,
-            administrative_status,
-            student:students(
+        let allEnrollments: any[] = [];
+        let enrPage = 0;
+        const enrPageSize = 1000;
+        let enrHasMore = true;
+
+        while (enrHasMore) {
+          const { data: enrollments, error: enrErr } = await supabase
+            .from('student_enrollments')
+            .select(`
               id,
-              full_name,
-              nis,
-              gender,
-              student_status
-            )
-          `)
-          .eq('academic_year_id', selectedAcademicYearId)
-          .range(0, 4999);
+              student_id,
+              unit,
+              grade,
+              administrative_status,
+              student:students(
+                id,
+                full_name,
+                nis,
+                gender,
+                student_status
+              )
+            `)
+            .eq('academic_year_id', selectedAcademicYearId)
+            .range(enrPage * enrPageSize, (enrPage + 1) * enrPageSize - 1);
 
-        if (enrErr) console.warn('Enrollment fetch err:', enrErr);
+          if (enrErr) {
+            console.warn('Enrollment fetch err:', enrErr);
+            break;
+          }
 
-        activeEnr = (enrollments || []).filter(
+          if (enrollments && enrollments.length > 0) {
+            allEnrollments = allEnrollments.concat(enrollments);
+            if (enrollments.length < enrPageSize) enrHasMore = false;
+            else enrPage++;
+          } else {
+            enrHasMore = false;
+          }
+        }
+
+        activeEnr = allEnrollments.filter(
           (e: any) => e.student && e.student.student_status === 'aktif'
         );
 

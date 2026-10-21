@@ -118,13 +118,28 @@ export const FinancialReportPage: React.FC = () => {
 
         bills = allBillsData;
 
-        const { data: enrData } = await supabase
-          .from('student_enrollments')
-          .select('student_id, unit, grade')
-          .eq('academic_year_id', selectedAcademicYearId)
-          .range(0, 4999);
+        let allEnrData: any[] = [];
+        let enrPage = 0;
+        const enrPageSize = 1000;
+        let enrHasMore = true;
 
-        enrollments = enrData || [];
+        while (enrHasMore) {
+          const { data: enrData } = await supabase
+            .from('student_enrollments')
+            .select('student_id, unit, grade')
+            .eq('academic_year_id', selectedAcademicYearId)
+            .range(enrPage * enrPageSize, (enrPage + 1) * enrPageSize - 1);
+
+          if (enrData && enrData.length > 0) {
+            allEnrData = allEnrData.concat(enrData);
+            if (enrData.length < enrPageSize) enrHasMore = false;
+            else enrPage++;
+          } else {
+            enrHasMore = false;
+          }
+        }
+
+        enrollments = allEnrData;
       }
 
       const studentUnitMap = new Map<string, string>();
