@@ -16,7 +16,11 @@ import {
   X,
   Save,
   Check,
-  HelpCircle
+  HelpCircle,
+  Pin,
+  PinOff,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { studentService } from '../services/studentService';
@@ -68,6 +72,11 @@ export const PaymentRecapPage: React.FC = () => {
   const [gradeFilter, setGradeFilter] = useState<string>('ALL');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [unpaidMonthFilter, setUnpaidMonthFilter] = useState<string>('ALL');
+
+  // Freeze / Unfreeze student name column for mobile full-width scrolling
+  const [isNameFrozen, setIsNameFrozen] = useState<boolean>(false);
+  // Toggle filter visibility to maximize vertical space on phone screens
+  const [showFilters, setShowFilters] = useState<boolean>(false);
 
   // Export Unpaid SPP Modal State
   const [showUnpaidExportModal, setShowUnpaidExportModal] = useState<boolean>(false);
@@ -468,12 +477,26 @@ export const PaymentRecapPage: React.FC = () => {
               <span className="hidden sm:inline">Export Matriks Lengkap</span>
               <span className="sm:hidden">Matriks</span>
             </button>
+
+            {/* Toggle Filters on Mobile */}
+            <button
+              type="button"
+              onClick={() => setShowFilters(!showFilters)}
+              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg sm:rounded-xl border text-xs font-bold transition shadow-xs sm:hidden ${
+                showFilters ? 'bg-emerald-50 text-emerald-800 border-emerald-300' : 'bg-slate-50 text-slate-700 border-slate-200'
+              }`}
+              title="Tampilkan / Sembunyikan Filter Sortir"
+            >
+              <Filter className="w-3.5 h-3.5 text-slate-500" />
+              <span>{showFilters ? 'Tutup' : 'Filter'}</span>
+              {showFilters ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+            </button>
           </div>
         </div>
 
         {/* Row 2: Compact Responsive Filters (Desktop Toolbar Style) */}
         <div className="pt-2 border-t border-slate-100 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-1.5 sm:gap-2">
-          {/* Search Input */}
+          {/* Search Input - Always visible */}
           <div className="relative col-span-2 sm:col-span-1">
             <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
             <input
@@ -486,7 +509,7 @@ export const PaymentRecapPage: React.FC = () => {
           </div>
 
           {/* Jenjang Filter */}
-          <div>
+          <div className={`${showFilters ? 'block' : 'hidden sm:block'}`}>
             <select
               value={unitFilter}
               onChange={(e) => setUnitFilter(e.target.value as any)}
@@ -499,7 +522,7 @@ export const PaymentRecapPage: React.FC = () => {
           </div>
 
           {/* Kelas Filter */}
-          <div>
+          <div className={`${showFilters ? 'block' : 'hidden sm:block'}`}>
             <select
               value={gradeFilter}
               onChange={(e) => setGradeFilter(e.target.value)}
@@ -516,7 +539,7 @@ export const PaymentRecapPage: React.FC = () => {
           </div>
 
           {/* Kategori Filter */}
-          <div>
+          <div className={`${showFilters ? 'block' : 'hidden sm:block'}`}>
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
@@ -532,7 +555,7 @@ export const PaymentRecapPage: React.FC = () => {
           </div>
 
           {/* Status SPP Filter */}
-          <div className="col-span-2 sm:col-span-1">
+          <div className={`col-span-2 sm:col-span-1 ${showFilters ? 'block' : 'hidden sm:block'}`}>
             <select
               value={unpaidMonthFilter}
               onChange={(e) => setUnpaidMonthFilter(e.target.value)}
@@ -592,30 +615,56 @@ export const PaymentRecapPage: React.FC = () => {
         </div>
       )}
 
-      {/* Legend & Hint in a Single Compact Horizontal Row */}
-      <div className="flex items-center justify-between gap-3 px-1 text-[10px] sm:text-[11px] font-semibold text-slate-500">
-        <div className="flex items-center gap-3 overflow-x-auto whitespace-nowrap scrollbar-none py-0.5">
-          <span className="flex items-center gap-1.5 shrink-0">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
-            <span>Lunas (Tgl Bayar)</span>
+      {/* Legend & Controls in a Single Compact Horizontal Row */}
+      <div className="flex flex-wrap items-center justify-between gap-2 px-1 text-[10px] sm:text-[11px] font-semibold text-slate-500">
+        <div className="flex items-center gap-2.5 overflow-x-auto whitespace-nowrap scrollbar-none py-0.5">
+          <span className="flex items-center gap-1 shrink-0">
+            <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+            <span>Lunas</span>
           </span>
-          <span className="flex items-center gap-1.5 shrink-0">
-            <span className="w-2.5 h-2.5 rounded-full bg-rose-500"></span>
-            <span>Belum Bayar (Bulan Berjalan)</span>
+          <span className="flex items-center gap-1 shrink-0">
+            <span className="w-2 h-2 rounded-full bg-rose-500"></span>
+            <span>Belum Bayar</span>
           </span>
-          <span className="flex items-center gap-1.5 shrink-0">
-            <span className="w-2.5 h-2.5 rounded-full bg-slate-300"></span>
+          <span className="flex items-center gap-1 shrink-0">
+            <span className="w-2 h-2 rounded-full bg-slate-300"></span>
             <span>Akan Berlangsung</span>
           </span>
-          <span className="flex items-center gap-1.5 shrink-0">
-            <span className="w-2.5 h-2.5 rounded-full bg-purple-500"></span>
-            <span>Free (Bebas / Yatim)</span>
+          <span className="flex items-center gap-1 shrink-0">
+            <span className="w-2 h-2 rounded-full bg-purple-500"></span>
+            <span>Free</span>
           </span>
         </div>
 
-        <span className="text-emerald-800 font-bold hidden lg:inline shrink-0">
-          💡 Klik sel mana saja untuk edit tanggal atau nominal
-        </span>
+        <div className="flex items-center gap-2 shrink-0">
+          <span className="text-emerald-800 font-bold hidden lg:inline">
+            💡 Klik sel untuk edit
+          </span>
+
+          {/* Toggle Freeze / Unfreeze Nama Siswa */}
+          <button
+            type="button"
+            onClick={() => setIsNameFrozen(!isNameFrozen)}
+            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold transition border shadow-2xs ${
+              isNameFrozen
+                ? 'bg-emerald-800 text-white border-emerald-900 ring-1 ring-emerald-500'
+                : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
+            }`}
+            title="Klik untuk beralih antara Kunci Nama vs Geser Bebas Full Layar"
+          >
+            {isNameFrozen ? (
+              <>
+                <Pin className="w-3 h-3 text-gold-300 shrink-0" />
+                <span>Kunci Nama (Ramping)</span>
+              </>
+            ) : (
+              <>
+                <PinOff className="w-3 h-3 text-slate-400 shrink-0" />
+                <span>Geser Bebas (Full Layar)</span>
+              </>
+            )}
+          </button>
+        </div>
       </div>
 
       {/* Main Matrix Table with Maximized Height & Pinned Headers */}
@@ -624,8 +673,24 @@ export const PaymentRecapPage: React.FC = () => {
           <table className="w-full text-left border-collapse text-xs whitespace-nowrap">
             <thead className="sticky top-0 z-30 shadow-xs">
               <tr className="bg-emerald-950 text-white font-bold uppercase tracking-wider text-[11px]">
-                <th className="py-2.5 px-2.5 w-10 text-center sticky left-0 z-40 bg-emerald-950 border-r border-emerald-900">No</th>
-                <th className="py-2.5 px-3.5 sticky left-10 z-40 bg-emerald-950 min-w-[170px] border-r border-emerald-900 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.4)]">Nama Siswa</th>
+                <th
+                  className={`py-2 px-1 text-center border-r border-emerald-900 ${
+                    isNameFrozen
+                      ? 'sticky left-0 z-40 bg-emerald-950 w-7 sm:w-10'
+                      : 'w-7 sm:w-10'
+                  }`}
+                >
+                  No
+                </th>
+                <th
+                  className={`py-2 px-2 sm:px-3.5 border-r border-emerald-900 ${
+                    isNameFrozen
+                      ? 'sticky left-7 sm:left-10 z-40 bg-emerald-950 max-w-[115px] sm:max-w-none truncate shadow-[2px_0_5px_-2px_rgba(0,0,0,0.4)]'
+                      : 'min-w-[140px] sm:min-w-[170px]'
+                  }`}
+                >
+                  Nama Siswa
+                </th>
                 <th className="py-2.5 px-2.5 text-center">Jenjang</th>
                 <th className="py-2.5 px-2.5 text-center">Kelas</th>
                 <th className="py-2.5 px-2.5">Status</th>
@@ -665,10 +730,23 @@ export const PaymentRecapPage: React.FC = () => {
               ) : (
                 filteredRows.map((row, idx) => (
                   <tr key={row.student_id} className="hover:bg-slate-50/80 transition">
-                    <td className="py-2 px-2.5 text-center text-slate-400 font-bold sticky left-0 z-10 bg-white border-r border-slate-100">
+                    <td
+                      className={`py-2 px-1 sm:px-2.5 text-center text-slate-400 font-bold border-r border-slate-100 ${
+                        isNameFrozen
+                          ? 'sticky left-0 z-10 bg-white'
+                          : ''
+                      }`}
+                    >
                       {idx + 1}
                     </td>
-                    <td className="py-2 px-3.5 font-bold text-slate-800 sticky left-10 z-10 bg-white border-r border-slate-100 shadow-[2px_0_4px_-1px_rgba(0,0,0,0.06)]">
+                    <td
+                      className={`py-2 px-2 sm:px-3.5 font-bold text-slate-800 border-r border-slate-100 ${
+                        isNameFrozen
+                          ? 'sticky left-7 sm:left-10 z-10 bg-white max-w-[115px] sm:max-w-none truncate shadow-[2px_0_4px_-1px_rgba(0,0,0,0.06)]'
+                          : 'whitespace-nowrap'
+                      }`}
+                      title={row.student_name}
+                    >
                       {row.student_name}
                     </td>
                     <td className="py-2 px-2.5 text-center text-slate-600 font-semibold">{row.unit}</td>
