@@ -182,6 +182,7 @@ export const StudentArrearsCardModal: React.FC<StudentArrearsCardModalProps> = (
     text += `*YAYASAN AL-QUR'ANIYYAH*\n`;
     text += `_SMP IT & SMA IT Al-Qur'aniyyah_\n`;
     text += `====================\n\n`;
+    text += `Assalamu'alaikum Wr. Wb.\n\n`;
     text += `Kepada Yth.\n`;
     text += `Orang Tua / Wali dari Ananda:\n`;
     text += `Nama Siswa : *${student.full_name}*\n`;
@@ -213,7 +214,9 @@ export const StudentArrearsCardModal: React.FC<StudentArrearsCardModalProps> = (
       text += `Atas Nama    : *${paymentAccount.accountHolder}*\n\n`;
     }
     text += `Konfirmasi Bukti Transfer: *0857-1723-5374* (Bendahara: Nasrulloh)\n\n`;
-    text += `Mohon kirimkan bukti transfer setelah melakukan pembayaran. Jazakumullahu khairan. 🙏\n\n`;
+    text += `Mohon kirimkan bukti transfer setelah melakukan pembayaran. Atas perhatian dan kerja sama Bapak/Ibu, kami ucapkan terima kasih.\n`;
+    text += `Jazakumullahu khairan katsiran. 🙏\n\n`;
+    text += `Wassalamu'alaikum Wr. Wb.\n\n`;
     text += `_Bendahara Yayasan Al-Qur'aniyyah - Nasrulloh_`;
 
     navigator.clipboard.writeText(text);
