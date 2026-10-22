@@ -1,5 +1,5 @@
 import React from 'react';
-import { Menu, Database, ShieldCheck, LogOut, User as UserIcon } from 'lucide-react';
+import { Menu, Database, ShieldCheck, LogOut, User as UserIcon, Monitor, Smartphone } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { isSupabaseConfigured } from '../lib/supabase';
 
@@ -8,13 +8,22 @@ interface HeaderProps {
   subtitle?: string;
   onToggleSidebar: () => void;
   isSidebarCollapsed?: boolean;
+  isDesktopMode?: boolean;
+  onToggleDesktopMode?: () => void;
 }
 
-export const Header: React.FC<HeaderProps> = ({ title, subtitle, onToggleSidebar, isSidebarCollapsed }) => {
+export const Header: React.FC<HeaderProps> = ({
+  title,
+  subtitle,
+  onToggleSidebar,
+  isSidebarCollapsed,
+  isDesktopMode = false,
+  onToggleDesktopMode,
+}) => {
   const { user, signOut } = useAuth();
 
   return (
-    <header className="sticky top-0 z-30 bg-white/90 backdrop-blur-md border-b border-slate-200/80 px-3 sm:px-6 py-2.5 sm:py-3 flex items-center justify-between shadow-xs">
+    <header className="sticky top-0 z-30 bg-white/90 backdrop-blur-md border-b border-slate-200/80 px-2.5 sm:px-6 py-2 sm:py-3 flex items-center justify-between shadow-xs">
       <div className="flex items-center gap-2 sm:gap-3 min-w-0">
         <button
           onClick={onToggleSidebar}
@@ -40,7 +49,32 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle, onToggleSidebar
         </div>
       </div>
 
-      <div className="flex items-center gap-3 sm:gap-4">
+      <div className="flex items-center gap-2 sm:gap-4">
+        {/* Toggle Mode Desktop (PC View) on HP / Tablet */}
+        {onToggleDesktopMode && (
+          <button
+            onClick={onToggleDesktopMode}
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-bold transition border shadow-xs ${
+              isDesktopMode
+                ? 'bg-emerald-900 text-amber-300 border-emerald-950 hover:bg-emerald-850'
+                : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
+            }`}
+            title={isDesktopMode ? "Kembali ke Tampilan HP" : "Beralih ke Tampilan Desktop/PC (Lebar & Padat)"}
+          >
+            {isDesktopMode ? (
+              <>
+                <Monitor className="w-3.5 h-3.5 text-amber-300" />
+                <span className="text-[11px]">Mode PC (Aktif)</span>
+              </>
+            ) : (
+              <>
+                <Monitor className="w-3.5 h-3.5 text-emerald-800" />
+                <span className="text-[11px]">Mode PC</span>
+              </>
+            )}
+          </button>
+        )}
+
         {/* Supabase Status Pill */}
         <div
           className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border ${

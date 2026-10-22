@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AuthProvider } from './context/AuthContext';
 import { AppProvider } from './context/AppContext';
 import { Sidebar, MenuItemId } from './components/Sidebar';
@@ -20,6 +20,25 @@ const AppContent: React.FC = () => {
   const [activeTab, setActiveTab] = useState<MenuItemId>('recap-payments'); // default directly to the requested Rekap Pembayaran page!
   const [isOpenMobile, setIsOpenMobile] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isDesktopMode, setIsDesktopMode] = useState<boolean>(() => {
+    return localStorage.getItem('simka_view_mode') === 'desktop';
+  });
+
+  useEffect(() => {
+    const meta = document.getElementById('viewport-meta') || document.querySelector('meta[name="viewport"]');
+    if (meta) {
+      if (isDesktopMode) {
+        meta.setAttribute('content', 'width=1200, initial-scale=0.32, maximum-scale=3.0, user-scalable=yes');
+      } else {
+        meta.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes');
+      }
+    }
+    localStorage.setItem('simka_view_mode', isDesktopMode ? 'desktop' : 'mobile');
+  }, [isDesktopMode]);
+
+  const handleToggleDesktopMode = () => {
+    setIsDesktopMode((prev) => !prev);
+  };
 
   const handleToggleSidebar = () => {
     if (window.innerWidth < 1024) {
@@ -57,7 +76,7 @@ const AppContent: React.FC = () => {
   const { title, subtitle } = getPageTitle(activeTab);
 
   return (
-    <div className="min-h-screen bg-slate-50 flex">
+    <div className={`min-h-screen bg-slate-50 flex ${isDesktopMode ? 'min-w-[1200px]' : ''}`}>
       {/* Sidebar */}
       <Sidebar
         activeTab={activeTab}
@@ -75,9 +94,11 @@ const AppContent: React.FC = () => {
           subtitle={subtitle}
           onToggleSidebar={handleToggleSidebar}
           isSidebarCollapsed={isSidebarCollapsed}
+          isDesktopMode={isDesktopMode}
+          onToggleDesktopMode={handleToggleDesktopMode}
         />
 
-        <main className="flex-1 p-2 sm:p-4 lg:p-6 max-w-[1600px] w-full mx-auto">
+        <main className={`flex-1 p-2 sm:p-4 lg:p-6 w-full mx-auto ${isDesktopMode ? 'max-w-none' : 'max-w-[1600px]'}`}>
           {activeTab === 'dashboard' && <DashboardPage />}
           {activeTab === 'students' && <StudentsPage />}
           {activeTab === 'academic-years' && <AcademicYearsPage />}
