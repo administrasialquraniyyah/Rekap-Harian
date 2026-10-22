@@ -216,25 +216,25 @@ export const PaymentsPage: React.FC = () => {
   const selectedBill = studentBills.find((b) => b.id === selectedBillId);
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 pb-12">
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 sm:gap-5 pb-8">
       {/* LEFT / MAIN COLUMN: Input Form (7 Cols) */}
-      <div className="lg:col-span-7 space-y-5">
-        <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-xs">
-          <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+      <div className="lg:col-span-7 space-y-3">
+        <div className="bg-white rounded-xl p-3.5 sm:p-5 border border-slate-200 shadow-2xs">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
             <div>
-              <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full">
-                Input Cepat & Akurat
+              <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">
+                Input Cepat &amp; Akurat
               </span>
-              <h3 className="text-xl font-black text-slate-800 mt-1">
+              <h3 className="text-base sm:text-lg font-black text-slate-800 mt-0.5">
                 Catat Pembayaran Siswa
               </h3>
-              <p className="text-xs text-slate-500">
+              <p className="text-[11px] text-slate-500">
                 Tahun Ajaran {selectedAcademicYear?.name || '2026/2027'}
               </p>
             </div>
 
-            <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-800 flex items-center justify-center">
-              <CreditCard className="w-5 h-5" />
+            <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-800 flex items-center justify-center">
+              <CreditCard className="w-4 h-4" />
             </div>
           </div>
 
@@ -483,14 +483,14 @@ export const PaymentsPage: React.FC = () => {
       </div>
 
       {/* RIGHT COLUMN: Recent Transactions & Audit History (5 Cols) */}
-      <div className="lg:col-span-5 space-y-5">
-        <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs">
-          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+      <div className="lg:col-span-5 space-y-3">
+        <div className="bg-white rounded-xl p-3.5 sm:p-5 border border-slate-200 shadow-2xs">
+          <div className="flex items-center justify-between pb-2.5 border-b border-slate-100">
             <div>
-              <h4 className="font-bold text-sm text-slate-800">Riwayat Pembayaran Terbaru</h4>
-              <p className="text-[11px] text-slate-400">Transaksi tercatat di database Supabase</p>
+              <h4 className="font-bold text-xs sm:text-sm text-slate-800">Riwayat Pembayaran Terbaru</h4>
+              <p className="text-[10px] text-slate-400">Transaksi tercatat di database Supabase</p>
             </div>
-            <History className="w-4 h-4 text-slate-400" />
+            <History className="w-3.5 h-3.5 text-slate-400" />
           </div>
 
           <div className="divide-y divide-slate-100 mt-2 max-h-[600px] overflow-y-auto">

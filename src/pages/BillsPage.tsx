@@ -297,129 +297,132 @@ export const BillsPage: React.FC = () => {
   const paginatedBills = filteredBills.slice(startIndex, startIndex + pageSize);
 
   return (
-    <div className="space-y-5">
-      <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h3 className="text-lg font-bold text-slate-800">Daftar Tagihan Siswa</h3>
-          <p className="text-xs text-slate-500">
-            Kelola tagihan bulanan (SPP) dan tagihan satu kali untuk T.A. {selectedAcademicYear?.name || '2026/2027'} (Total {bills.length.toLocaleString('id-ID')} tagihan)
-          </p>
+    <div className="space-y-3">
+      {/* Dense Desktop-Style Action & Filter Toolbar */}
+      <div className="bg-white rounded-xl p-3 border border-slate-200 shadow-2xs space-y-2.5">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h3 className="text-sm font-bold text-slate-800 leading-tight">Daftar Tagihan Siswa</h3>
+            <p className="text-[11px] text-slate-500">
+              T.A. {selectedAcademicYear?.name || '2026/2027'} · Total {filteredBills.length.toLocaleString('id-ID')} tagihan
+            </p>
+          </div>
+
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <button
+              onClick={handleOpenRevisionModal}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 text-[11px] font-bold transition shadow-2xs"
+            >
+              <Sliders className="w-3.5 h-3.5 text-amber-700" />
+              <span>Revisi Tarif / Santri Berhenti</span>
+            </button>
+
+            <button
+              onClick={handleOpenAdd}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-800 hover:bg-emerald-700 text-white text-[11px] font-semibold transition shadow-2xs"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Buat Tagihan</span>
+            </button>
+          </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2.5">
-          <button
-            onClick={handleOpenRevisionModal}
-            className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 text-xs font-bold transition shadow-2xs"
-          >
-            <Sliders className="w-4 h-4 text-amber-700" />
-            <span>Revisi Tarif / Santri Berhenti</span>
-          </button>
+        {/* Compact Filter Grid */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 border-t border-slate-100">
+          <div className="relative col-span-2 sm:col-span-1">
+            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setCurrentPage(1);
+              }}
+              placeholder="Cari siswa/tagihan..."
+              className="w-full pl-8 pr-2 py-1.5 text-xs rounded-lg border border-slate-200 focus:outline-none focus:ring-1 focus:ring-emerald-700 bg-slate-50/50"
+            />
+          </div>
 
-          <button
-            onClick={handleOpenAdd}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-800 hover:bg-emerald-700 text-white text-xs font-semibold transition shadow-sm"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Buat Tagihan Baru</span>
-          </button>
-        </div>
-      </div>
+          <div>
+            <select
+              value={categoryFilter}
+              onChange={(e) => {
+                setCategoryFilter(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="w-full py-1.5 px-2 text-xs rounded-lg border border-slate-200 focus:outline-none focus:ring-1 focus:ring-emerald-700 bg-white"
+            >
+              <option value="ALL">Semua Kategori</option>
+              {categories.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </div>
 
-      {/* Filter bar */}
-      <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs grid grid-cols-1 sm:grid-cols-4 gap-3">
-        <div className="relative">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setCurrentPage(1);
-            }}
-            placeholder="Cari siswa atau tagihan..."
-            className="w-full pl-9 pr-3 py-2 text-xs font-medium rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-700 bg-slate-50/50"
-          />
-        </div>
+          <div>
+            <select
+              value={monthFilter}
+              onChange={(e) => {
+                setMonthFilter(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="w-full py-1.5 px-2 text-xs rounded-lg border border-slate-200 focus:outline-none focus:ring-1 focus:ring-emerald-700 bg-white"
+            >
+              <option value="ALL">Semua Bulan</option>
+              {SPP_MONTHS.map((m) => (
+                <option key={m} value={m}>
+                  {m}
+                </option>
+              ))}
+            </select>
+          </div>
 
-        <div>
-          <select
-            value={categoryFilter}
-            onChange={(e) => {
-              setCategoryFilter(e.target.value);
-              setCurrentPage(1);
-            }}
-            className="w-full py-2 px-3 text-xs font-medium rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-700 bg-white"
-          >
-            <option value="ALL">Semua Kategori Tagihan</option>
-            {categories.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <select
-            value={monthFilter}
-            onChange={(e) => {
-              setMonthFilter(e.target.value);
-              setCurrentPage(1);
-            }}
-            className="w-full py-2 px-3 text-xs font-medium rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-700 bg-white"
-          >
-            <option value="ALL">Semua Periode / Bulan</option>
-            {SPP_MONTHS.map((m) => (
-              <option key={m} value={m}>
-                Bulan {m}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <select
-            value={statusFilter}
-            onChange={(e) => {
-              setStatusFilter(e.target.value);
-              setCurrentPage(1);
-            }}
-            className="w-full py-2 px-3 text-xs font-medium rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-700 bg-white"
-          >
-            <option value="ALL">Semua Status</option>
-            <option value="Belum Dibayar">Belum Dibayar (Jatuh Tempo)</option>
-            <option value="Akan Berlangsung">Akan Berlangsung (Bulan Belum Berjalan)</option>
-            <option value="Belum Lunas">Belum Lunas</option>
-            <option value="Lunas">Lunas</option>
-            <option value="Bebas">Bebas / Free</option>
-          </select>
+          <div>
+            <select
+              value={statusFilter}
+              onChange={(e) => {
+                setStatusFilter(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="w-full py-1.5 px-2 text-xs rounded-lg border border-slate-200 focus:outline-none focus:ring-1 focus:ring-emerald-700 bg-white"
+            >
+              <option value="ALL">Semua Status</option>
+              <option value="Belum Dibayar">Belum Dibayar</option>
+              <option value="Akan Berlangsung">Akan Berlangsung</option>
+              <option value="Belum Lunas">Belum Lunas</option>
+              <option value="Lunas">Lunas</option>
+              <option value="Bebas">Bebas</option>
+            </select>
+          </div>
         </div>
       </div>
 
       {/* Info Banner: Active Month vs Upcoming Months */}
-      <div className="bg-emerald-50/70 border border-emerald-200/70 rounded-xl px-4 py-2.5 flex items-center gap-2.5 text-xs text-emerald-950 shadow-2xs">
-        <Calendar className="w-4 h-4 text-emerald-700 shrink-0" />
+      <div className="bg-emerald-50/80 border border-emerald-200/70 rounded-xl px-3 py-1.5 flex items-center gap-2 text-[11px] text-emerald-950 shadow-2xs">
+        <Calendar className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
         <span>
-          Bulan berjalan saat ini: <strong className="font-bold text-emerald-900">Oktober</strong>.
-          Tagihan SPP bulan mendatang (November s/d Juni) berstatus <em>Akan Berlangsung</em> dan belum jatuh tempo sebagai tunggakan.
+          Bulan berjalan: <strong className="font-bold text-emerald-900">Oktober</strong>.
+          Tagihan SPP bulan mendatang (November-Juni) berstatus <em>Akan Berlangsung</em> (bukan tunggakan).
         </span>
       </div>
 
       {/* Bills Table */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-        <div className="overflow-x-auto">
+      <div className="bg-white rounded-xl border border-slate-200 shadow-2xs overflow-hidden">
+        <div className="overflow-x-auto max-h-[calc(100vh-230px)] overflow-y-auto">
           <table className="w-full text-left border-collapse text-xs">
-            <thead>
-              <tr className="bg-slate-50 text-slate-600 font-bold uppercase tracking-wider text-[11px] border-b border-slate-200">
-                <th className="py-3.5 px-4 w-12 text-center">No</th>
-                <th className="py-3.5 px-4">Nama Siswa</th>
-                <th className="py-3.5 px-4">Jenis Tagihan</th>
-                <th className="py-3.5 px-4">Periode</th>
-                <th className="py-3.5 px-4 text-right">Nominal Tagihan</th>
-                <th className="py-3.5 px-4 text-right">Sudah Dibayar</th>
-                <th className="py-3.5 px-4 text-right">Sisa Tagihan</th>
-                <th className="py-3.5 px-4 text-center">Status</th>
-                <th className="py-3.5 px-4 text-center w-24">Aksi</th>
+            <thead className="sticky top-0 z-20 bg-slate-100 shadow-2xs">
+              <tr className="text-slate-600 font-bold uppercase tracking-wider text-[10px] border-b border-slate-200">
+                <th className="py-2.5 px-3 w-10 text-center sticky left-0 bg-slate-100 z-20">No</th>
+                <th className="py-2.5 px-3 min-w-[150px] sticky left-10 bg-slate-100 z-20">Nama Siswa</th>
+                <th className="py-2.5 px-3 min-w-[100px]">Jenis Tagihan</th>
+                <th className="py-2.5 px-3 min-w-[80px]">Periode</th>
+                <th className="py-2.5 px-3 text-right min-w-[100px]">Nominal</th>
+                <th className="py-2.5 px-3 text-right min-w-[100px]">Dibayar</th>
+                <th className="py-2.5 px-3 text-right min-w-[100px]">Sisa</th>
+                <th className="py-2.5 px-3 text-center min-w-[110px]">Status</th>
+                <th className="py-2.5 px-3 text-center w-20">Aksi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -437,9 +440,9 @@ export const BillsPage: React.FC = () => {
                 </tr>
               ) : (
                 paginatedBills.map((bill, idx) => (
-                  <tr key={bill.id} className="hover:bg-slate-50/60 transition">
-                    <td className="py-3 px-4 text-center text-slate-400 font-bold">{startIndex + idx + 1}</td>
-                    <td className="py-3 px-4 font-bold text-slate-800">
+                  <tr key={bill.id} className="hover:bg-slate-50/60 transition group">
+                    <td className="py-2.5 px-3 text-center text-slate-400 font-bold sticky left-0 bg-white group-hover:bg-slate-50/60 z-10">{startIndex + idx + 1}</td>
+                    <td className="py-2.5 px-3 font-bold text-slate-800 sticky left-10 bg-white group-hover:bg-slate-50/60 z-10 whitespace-nowrap">
                       {bill.student?.full_name || 'Siswa'}
                       {bill.student?.nis && (
                         <span className="block text-[10px] text-slate-400 font-normal">
@@ -447,19 +450,19 @@ export const BillsPage: React.FC = () => {
                         </span>
                       )}
                     </td>
-                    <td className="py-3 px-4 font-semibold text-slate-700">
+                    <td className="py-2.5 px-3 font-semibold text-slate-700 whitespace-nowrap">
                       {bill.category?.name || 'Tagihan'}
                     </td>
-                    <td className="py-3 px-4 text-slate-600">
+                    <td className="py-2.5 px-3 text-slate-600 whitespace-nowrap">
                       {bill.billing_period || '-'}
                     </td>
-                    <td className="py-3 px-4 text-right font-semibold text-slate-800">
+                    <td className="py-2.5 px-3 text-right font-semibold text-slate-800 whitespace-nowrap">
                       Rp{Number(bill.amount).toLocaleString('id-ID')}
                     </td>
-                    <td className="py-3 px-4 text-right font-semibold text-emerald-700">
+                    <td className="py-2.5 px-3 text-right font-semibold text-emerald-700 whitespace-nowrap">
                       Rp{Number(bill.total_paid || 0).toLocaleString('id-ID')}
                     </td>
-                    <td className="py-3 px-4 text-right">
+                    <td className="py-2.5 px-3 text-right whitespace-nowrap">
                       {bill.calculated_status === 'Akan Berlangsung' ? (
                         <span className="text-slate-400 font-medium text-[11px]" title="Tagihan belum jatuh tempo (bulan mendatang)">
                           - (Belum Berjalan)
@@ -474,7 +477,7 @@ export const BillsPage: React.FC = () => {
                         </span>
                       )}
                     </td>
-                    <td className="py-3 px-4 text-center">
+                    <td className="py-2.5 px-3 text-center whitespace-nowrap">
                       <span
                         className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
                           bill.calculated_status === 'Lunas' || bill.calculated_status === 'Bebas'

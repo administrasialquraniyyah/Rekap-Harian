@@ -588,92 +588,92 @@ export const DashboardPage: React.FC = () => {
   }), { lakiLaki: 0, perempuan: 0, mampu: 0, yatim: 0, lainnya: 0, total: 0 });
 
   return (
-    <div className="space-y-6 pb-12">
+    <div className="space-y-4 sm:space-y-6 pb-12">
       {/* Top Banner / Academic Year Status */}
-      <div className="bg-gradient-to-r from-emerald-900 via-emerald-850 to-emerald-950 rounded-2xl p-6 text-white shadow-lg border border-emerald-800 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div className="bg-gradient-to-r from-emerald-900 via-emerald-850 to-emerald-950 rounded-xl sm:rounded-2xl p-4 sm:p-6 text-white shadow-md border border-emerald-800 flex flex-col md:flex-row md:items-center md:justify-between gap-3 sm:gap-4">
         <div>
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-gold-400 text-emerald-950 mb-2">
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] sm:text-xs font-semibold bg-gold-400 text-emerald-950 mb-1.5 sm:mb-2">
             <Calendar className="w-3.5 h-3.5" />
             Tahun Ajaran {selectedAcademicYear?.name || '2026/2027'}
           </span>
-          <h2 className="text-xl sm:text-2xl font-black tracking-tight text-white">
+          <h2 className="text-lg sm:text-2xl font-black tracking-tight text-white leading-tight">
             Dashboard Keuangan Yayasan Al-Qur’aniyyah
           </h2>
-          <p className="text-emerald-200/80 text-sm mt-1 max-w-2xl">
+          <p className="text-emerald-200/80 text-xs sm:text-sm mt-1 max-w-2xl hidden xs:block">
             Ringkasan data real-time penerimaan Infaq Syahriyyah (SPP), perlengkapan, pembangunan, dan rekap tunggakan siswa unit SMP IT & SMA IT.
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           <button
             onClick={() => fetchDashboardData()}
             disabled={isLoading}
-            className="flex items-center gap-2 bg-emerald-800/80 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-xl text-sm font-semibold transition shadow-sm border border-emerald-600/50"
+            className="flex items-center gap-1.5 sm:gap-2 bg-emerald-800/80 hover:bg-emerald-700 text-white px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition shadow-xs border border-emerald-600/50"
           >
-            <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${isLoading ? 'animate-spin' : ''}`} />
             <span>Perbarui Data</span>
           </button>
         </div>
       </div>
 
-      {/* KPI Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs flex items-center justify-between">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Siswa Aktif</p>
-            <h3 className="text-2xl font-black text-slate-800 mt-1">{activeStudentsCount}</h3>
-            <p className="text-xs text-slate-500 mt-1">
-              <span className="text-emerald-600 font-semibold">{paidStudentsCount} lunas s/d Okt</span> ·{' '}
-              <span className="text-rose-600 font-semibold">{arrearsStudentsCount} menunggak</span>
+      {/* KPI Summary Cards: 2 Columns on Mobile, 4 on Desktop */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
+        <div className="bg-white rounded-xl sm:rounded-2xl p-3 sm:p-5 border border-slate-200 shadow-xs flex items-center justify-between">
+          <div className="min-w-0">
+            <p className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-400 truncate">Siswa Aktif</p>
+            <h3 className="text-lg sm:text-2xl font-black text-slate-800 mt-0.5 sm:mt-1">{activeStudentsCount}</h3>
+            <p className="text-[10px] sm:text-xs text-slate-500 mt-0.5 sm:mt-1 truncate">
+              <span className="text-emerald-600 font-semibold">{paidStudentsCount} lunas</span> ·{' '}
+              <span className="text-rose-600 font-semibold">{arrearsStudentsCount} nunggak</span>
             </p>
           </div>
-          <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
-            <Users className="w-6 h-6" />
+          <div className="w-8 h-8 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+            <Users className="w-4 h-4 sm:w-6 sm:h-6" />
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs flex items-center justify-between">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Total Tagihan (s/d Okt)</p>
-            <h3 className="text-2xl font-black text-slate-800 mt-1">{formatRupiah(totalBills)}</h3>
-            <p className="text-xs text-slate-500 mt-1">Kewajiban aktif berjalan s/d Oktober</p>
+        <div className="bg-white rounded-xl sm:rounded-2xl p-3 sm:p-5 border border-slate-200 shadow-xs flex items-center justify-between">
+          <div className="min-w-0">
+            <p className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-400 truncate">Total Tagihan (s/d Okt)</p>
+            <h3 className="text-sm sm:text-2xl font-black text-slate-800 mt-0.5 sm:mt-1 truncate">{formatRupiah(totalBills)}</h3>
+            <p className="text-[10px] sm:text-xs text-slate-500 mt-0.5 sm:mt-1 truncate">Kewajiban berjalan</p>
           </div>
-          <div className="w-12 h-12 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center">
-            <Wallet className="w-6 h-6" />
+          <div className="w-8 h-8 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center shrink-0">
+            <Wallet className="w-4 h-4 sm:w-6 sm:h-6" />
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs flex items-center justify-between">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-wider text-emerald-600">Pemasukan Diterima</p>
-            <h3 className="text-2xl font-black text-emerald-700 mt-1">{formatRupiah(totalPayments)}</h3>
-            <p className="text-xs text-emerald-600/80 font-medium mt-1">
+        <div className="bg-white rounded-xl sm:rounded-2xl p-3 sm:p-5 border border-slate-200 shadow-xs flex items-center justify-between">
+          <div className="min-w-0">
+            <p className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-emerald-600 truncate">Pemasukan Diterima</p>
+            <h3 className="text-sm sm:text-2xl font-black text-emerald-700 mt-0.5 sm:mt-1 truncate">{formatRupiah(totalPayments)}</h3>
+            <p className="text-[10px] sm:text-xs text-emerald-600/80 font-medium mt-0.5 sm:mt-1 truncate">
               {totalBills > 0 ? ((totalPayments / totalBills) * 100).toFixed(1) : 0}% terealisasi
             </p>
           </div>
-          <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
-            <TrendingUp className="w-6 h-6" />
+          <div className="w-8 h-8 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+            <TrendingUp className="w-4 h-4 sm:w-6 sm:h-6" />
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs flex items-center justify-between">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-wider text-rose-500">Sisa Tunggakan (s/d Okt)</p>
-            <h3 className="text-2xl font-black text-rose-600 mt-1">{formatRupiah(totalArrears)}</h3>
-            <p className="text-xs text-slate-500 mt-1">
-              Bulan mendatang belum dihitung
+        <div className="bg-white rounded-xl sm:rounded-2xl p-3 sm:p-5 border border-slate-200 shadow-xs flex items-center justify-between">
+          <div className="min-w-0">
+            <p className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-rose-500 truncate">Sisa Tunggakan</p>
+            <h3 className="text-sm sm:text-2xl font-black text-rose-600 mt-0.5 sm:mt-1 truncate">{formatRupiah(totalArrears)}</h3>
+            <p className="text-[10px] sm:text-xs text-slate-500 mt-0.5 sm:mt-1 truncate">
+              s/d Oktober
             </p>
           </div>
-          <div className="w-12 h-12 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center">
-            <AlertCircle className="w-6 h-6" />
+          <div className="w-8 h-8 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center shrink-0">
+            <AlertCircle className="w-4 h-4 sm:w-6 sm:h-6" />
           </div>
         </div>
       </div>
 
       {/* REKAP STATUS SISWA & KELAS (Requested by user) */}
-      <div className="bg-white rounded-2xl border border-slate-200/90 shadow-xs overflow-hidden">
+      <div className="bg-white rounded-xl sm:rounded-2xl border border-slate-200/90 shadow-xs overflow-hidden">
         {/* Header Section */}
-        <div className="px-6 py-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white">
+        <div className="px-4 py-3 sm:px-6 sm:py-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 bg-white">
           <div>
             <div className="flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-emerald-600"></span>

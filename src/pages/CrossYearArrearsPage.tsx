@@ -98,132 +98,132 @@ export const CrossYearArrearsPage: React.FC = () => {
   };
 
   return (
-    <div className="space-y-5 pb-12">
-      {/* Top Banner */}
-      <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <span className="text-[11px] font-bold uppercase tracking-wider text-rose-700 bg-rose-50 px-2.5 py-0.5 rounded-full">
-            Fitur Utama Lintas Tahun
-          </span>
-          <h3 className="text-lg font-bold text-slate-800 mt-1">
-            Rekap Tunggakan Siswa Lintas Tahun Ajaran
-          </h3>
-          <p className="text-xs text-slate-500">
-            Perhitungan akurat sisa tagihan dari tahun-tahun sebelumnya tanpa duplikasi
-          </p>
+    <div className="space-y-3 pb-8">
+      {/* Dense Desktop-Style Toolbar */}
+      <div className="bg-white rounded-xl p-3 border border-slate-200 shadow-2xs space-y-2.5">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-rose-700 bg-rose-50 px-2 py-0.5 rounded-full">
+                Lintas Tahun
+              </span>
+              <h3 className="text-sm font-bold text-slate-800 leading-tight">
+                Rekap Tunggakan Siswa
+              </h3>
+            </div>
+            <p className="text-[11px] text-slate-500">
+              Perhitungan akurat sisa tagihan lintas tahun ajaran
+            </p>
+          </div>
+
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={handleExport}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-800 hover:bg-emerald-700 text-white text-[11px] font-bold transition shadow-2xs"
+            >
+              <Download className="w-3.5 h-3.5 text-gold-400" />
+              <span>Export Excel</span>
+            </button>
+          </div>
         </div>
 
-        <div className="flex items-center gap-2.5">
-          <button
-            onClick={handleExport}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-800 hover:bg-emerald-700 text-white text-xs font-bold transition shadow-sm"
-          >
-            <Download className="w-4 h-4 text-gold-400" />
-            <span>Export Excel</span>
-          </button>
+        {/* Compact Filters */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 border-t border-slate-100">
+          <div className="relative col-span-2 sm:col-span-1">
+            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Cari siswa atau NIS..."
+              className="w-full pl-8 pr-2 py-1.5 text-xs rounded-lg border border-slate-200 focus:outline-none focus:ring-1 focus:ring-emerald-700 bg-slate-50/50"
+            />
+          </div>
+
+          <div>
+            <select
+              value={academicYearFilter}
+              onChange={(e) => setAcademicYearFilter(e.target.value)}
+              className="w-full py-1.5 px-2 text-xs font-bold rounded-lg border border-slate-200 focus:outline-none focus:ring-1 focus:ring-emerald-700 bg-emerald-50 text-emerald-950"
+            >
+              <option value="ALL">★ Semua Tahun Ajaran</option>
+              {academicYears.map((y) => (
+                <option key={y.id} value={y.id}>
+                  T.A. {y.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <select
+              value={unitFilter}
+              onChange={(e) => setUnitFilter(e.target.value as any)}
+              className="w-full py-1.5 px-2 text-xs rounded-lg border border-slate-200 focus:outline-none focus:ring-1 focus:ring-emerald-700 bg-white"
+            >
+              <option value="ALL">Semua Jenjang</option>
+              <option value="SMP IT">SMP IT</option>
+              <option value="SMA IT">SMA IT</option>
+            </select>
+          </div>
+
+          <div>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value as any)}
+              className="w-full py-1.5 px-2 text-xs rounded-lg border border-slate-200 focus:outline-none focus:ring-1 focus:ring-emerald-700 bg-white"
+            >
+              <option value="menunggak">Hanya Menunggak</option>
+              <option value="ALL">Semua (Termasuk Lunas)</option>
+              <option value="lunas">Hanya Lunas</option>
+            </select>
+          </div>
         </div>
       </div>
 
-      {/* Summary KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs">
-          <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Total Nilai Tunggakan</p>
-          <h4 className="text-2xl font-black text-rose-600 mt-1">
+      {/* Summary KPI Cards - Compact 2x2 grid on mobile */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+        <div className="bg-white rounded-xl p-3 border border-slate-200 shadow-2xs">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Total Nilai Tunggakan</p>
+          <h4 className="text-base sm:text-xl font-black text-rose-600 mt-0.5 truncate">
             Rp{totalArrearsSum.toLocaleString('id-ID')}
           </h4>
-          <p className="text-xs text-slate-500 mt-0.5">Akumulasi seluruh siswa tertampil</p>
+          <p className="text-[10px] text-slate-500 mt-0.5">{filteredData.length} siswa terfilter</p>
         </div>
 
-        <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs">
-          <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Jumlah Siswa Menunggak</p>
-          <h4 className="text-2xl font-black text-slate-800 mt-1">
+        <div className="bg-white rounded-xl p-3 border border-slate-200 shadow-2xs">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Siswa Menunggak</p>
+          <h4 className="text-base sm:text-xl font-black text-slate-800 mt-0.5">
             {totalStudentsWithArrears} <span className="text-xs font-normal text-slate-500">siswa</span>
           </h4>
-          <p className="text-xs text-slate-500 mt-0.5">Memiliki sisa tagihan &gt; Rp0</p>
+          <p className="text-[10px] text-slate-500 mt-0.5">Sisa tagihan &gt; Rp0</p>
         </div>
 
-        <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs">
-          <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Mode Periode</p>
-          <h4 className="text-lg font-black text-emerald-800 mt-1 flex items-center gap-2">
-            <Layers className="w-5 h-5 text-emerald-600" />
-            <span>{academicYearFilter === 'ALL' ? 'Semua Tahun Ajaran' : 'Tahun Ajaran Dipilih'}</span>
+        <div className="bg-white rounded-xl p-3 border border-slate-200 shadow-2xs col-span-2 sm:col-span-1">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Mode Periode</p>
+          <h4 className="text-xs sm:text-sm font-bold text-emerald-800 mt-1 flex items-center gap-1.5 truncate">
+            <Layers className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+            <span>{academicYearFilter === 'ALL' ? 'Semua Tahun Ajaran' : 'Tahun Ajaran Aktif'}</span>
           </h4>
-          <p className="text-xs text-slate-500 mt-0.5">Riwayat otomatis terhubung</p>
-        </div>
-      </div>
-
-      {/* Filters Bar */}
-      <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-        {/* Search */}
-        <div className="relative lg:col-span-2">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Cari nama siswa atau NIS..."
-            className="w-full pl-9 pr-3 py-2 text-xs font-medium rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-700 bg-slate-50/50"
-          />
-        </div>
-
-        {/* Academic Year Choice: INCLUDING 'SEMUA TAHUN AJARAN' */}
-        <div>
-          <select
-            value={academicYearFilter}
-            onChange={(e) => setAcademicYearFilter(e.target.value)}
-            className="w-full py-2 px-3 text-xs font-bold rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-700 bg-emerald-50 text-emerald-950"
-          >
-            <option value="ALL">★ Semua Tahun Ajaran (Lintas Tahun)</option>
-            {academicYears.map((y) => (
-              <option key={y.id} value={y.id}>
-                T.A. {y.name}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* Jenjang */}
-        <div>
-          <select
-            value={unitFilter}
-            onChange={(e) => setUnitFilter(e.target.value as any)}
-            className="w-full py-2 px-3 text-xs font-medium rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-700 bg-white"
-          >
-            <option value="ALL">Semua Jenjang</option>
-            <option value="SMP IT">SMP IT</option>
-            <option value="SMA IT">SMA IT</option>
-          </select>
-        </div>
-
-        {/* Status Pembayaran */}
-        <div>
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as any)}
-            className="w-full py-2 px-3 text-xs font-medium rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-700 bg-white"
-          >
-            <option value="menunggak">Hanya Yang Menunggak</option>
-            <option value="ALL">Semua (Termasuk Lunas)</option>
-            <option value="lunas">Hanya Yang Lunas</option>
-          </select>
+          <p className="text-[10px] text-slate-500 mt-0.5">Riwayat otomatis terhubung</p>
         </div>
       </div>
 
       {/* Main Table */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-        <div className="overflow-x-auto">
+      <div className="bg-white rounded-xl border border-slate-200 shadow-2xs overflow-hidden">
+        <div className="overflow-x-auto max-h-[calc(100vh-250px)] overflow-y-auto">
           <table className="w-full text-left border-collapse text-xs">
-            <thead>
-              <tr className="bg-slate-50 text-slate-600 font-bold uppercase tracking-wider text-[11px] border-b border-slate-200">
-                <th className="py-3.5 px-4 w-12 text-center">No</th>
-                <th className="py-3.5 px-4">Nama Siswa</th>
-                <th className="py-3.5 px-4">NIS</th>
-                <th className="py-3.5 px-4">Jenjang & Kelas</th>
-                <th className="py-3.5 px-4">Rincian Per Tahun Ajaran</th>
-                <th className="py-3.5 px-4 text-right">Total Tagihan</th>
-                <th className="py-3.5 px-4 text-right">Total Pembayaran</th>
-                <th className="py-3.5 px-4 text-right">Total Tunggakan</th>
-                <th className="py-3.5 px-4 text-center">Aksi</th>
+            <thead className="sticky top-0 z-20 bg-slate-100 shadow-2xs">
+              <tr className="text-slate-600 font-bold uppercase tracking-wider text-[10px] border-b border-slate-200">
+                <th className="py-2.5 px-3 w-10 text-center sticky left-0 bg-slate-100 z-20">No</th>
+                <th className="py-2.5 px-3 min-w-[150px] sticky left-10 bg-slate-100 z-20">Nama Siswa</th>
+                <th className="py-2.5 px-3 min-w-[80px]">NIS</th>
+                <th className="py-2.5 px-3 min-w-[110px]">Jenjang/Kelas</th>
+                <th className="py-2.5 px-3 min-w-[200px]">Rincian Per T.A.</th>
+                <th className="py-2.5 px-3 text-right min-w-[100px]">Total Tagihan</th>
+                <th className="py-2.5 px-3 text-right min-w-[100px]">Total Dibayar</th>
+                <th className="py-2.5 px-3 text-right min-w-[110px]">Total Tunggakan</th>
+                <th className="py-2.5 px-3 text-center w-24">Aksi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 font-medium">
@@ -241,24 +241,24 @@ export const CrossYearArrearsPage: React.FC = () => {
                 </tr>
               ) : (
                 filteredData.map((item, idx) => (
-                  <tr key={item.student.id} className="hover:bg-slate-50/80 transition">
-                    <td className="py-3 px-4 text-center text-slate-400 font-bold">{idx + 1}</td>
-                    <td className="py-3 px-4 font-bold text-slate-800">
+                  <tr key={item.student.id} className="hover:bg-slate-50/80 transition group">
+                    <td className="py-2 px-3 text-center text-slate-400 font-bold sticky left-0 bg-white group-hover:bg-slate-50 z-10">{idx + 1}</td>
+                    <td className="py-2 px-3 font-bold text-slate-800 sticky left-10 bg-white group-hover:bg-slate-50 z-10 whitespace-nowrap">
                       {item.student.full_name}
                     </td>
-                    <td className="py-3 px-4 font-mono text-slate-500 text-[11px]">
+                    <td className="py-2 px-3 font-mono text-slate-500 text-[11px] whitespace-nowrap">
                       {item.student.nis || '-'}
                     </td>
-                    <td className="py-3 px-4 font-semibold text-slate-700">
+                    <td className="py-2 px-3 font-semibold text-slate-700 whitespace-nowrap">
                       {item.current_unit || 'SMP IT'} · Kelas {item.current_grade || '-'}
                     </td>
-                    <td className="py-3 px-4">
+                    <td className="py-2 px-3">
                       {/* Breakdown pills per academic year */}
-                      <div className="flex flex-wrap gap-1.5">
+                      <div className="flex flex-wrap gap-1">
                         {item.years.map((y) => (
                           <span
                             key={y.academic_year_id}
-                            className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md ${
+                            className={`inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded ${
                               y.remaining_arrears > 0
                                 ? 'bg-rose-50 text-rose-700 border border-rose-200'
                                 : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
@@ -270,22 +270,22 @@ export const CrossYearArrearsPage: React.FC = () => {
                         ))}
                       </div>
                     </td>
-                    <td className="py-3 px-4 text-right font-semibold text-slate-800">
+                    <td className="py-2 px-3 text-right font-semibold text-slate-800 whitespace-nowrap">
                       Rp{item.grand_total_bills.toLocaleString('id-ID')}
                     </td>
-                    <td className="py-3 px-4 text-right font-semibold text-emerald-700">
+                    <td className="py-2 px-3 text-right font-semibold text-emerald-700 whitespace-nowrap">
                       Rp{item.grand_total_paid.toLocaleString('id-ID')}
                     </td>
-                    <td className="py-3 px-4 text-right font-black text-rose-600 text-sm">
+                    <td className="py-2 px-3 text-right font-black text-rose-600 text-xs whitespace-nowrap">
                       Rp{item.grand_total_arrears.toLocaleString('id-ID')}
                     </td>
-                    <td className="py-3 px-4 text-center">
+                    <td className="py-2 px-3 text-center whitespace-nowrap">
                       <button
                         onClick={() => setSelectedStudentArrears(item)}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-800 hover:bg-emerald-700 text-white text-[11px] font-bold transition shadow-xs"
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-800 hover:bg-emerald-700 text-white text-[10px] font-bold transition shadow-2xs"
                         title="Buka Kartu Rincian Tunggakan Resmi (Siap Screenshot & Cetak PDF)"
                       >
-                        <FileText className="w-3.5 h-3.5 text-gold-300" />
+                        <FileText className="w-3 h-3 text-gold-300" />
                         <span>Kartu &amp; PDF</span>
                       </button>
                     </td>

@@ -305,113 +305,114 @@ export const StudentsPage: React.FC = () => {
   };
 
   return (
-    <div className="space-y-5">
-      {/* Action Header */}
-      <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div>
-          <h3 className="text-lg font-bold text-slate-800">Master Data Siswa</h3>
-          <p className="text-xs text-slate-500">
-            Identitas siswa permanen lintas tahun ajaran dan riwayat kelas
-          </p>
+    <div className="space-y-3 sm:space-y-4">
+      {/* Unified Compact Control Panel */}
+      <div className="bg-white rounded-xl sm:rounded-2xl p-3 sm:p-4 border border-slate-200 shadow-xs space-y-2.5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+          <div className="flex items-center gap-2">
+            <Users className="w-4 h-4 text-emerald-800 shrink-0" />
+            <h3 className="text-sm sm:text-base font-bold text-slate-800">Master Data Siswa</h3>
+            <span className="text-xs text-slate-400 hidden md:inline">· Identitas permanen lintas tahun ajaran</span>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={handleExportExcel}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg sm:rounded-xl border border-slate-300 text-slate-700 bg-white hover:bg-slate-50 text-xs font-semibold transition"
+            >
+              <Download className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Export Excel</span>
+            </button>
+
+            <button
+              onClick={handleOpenAdd}
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg sm:rounded-xl bg-emerald-800 hover:bg-emerald-700 text-white text-xs font-semibold transition shadow-xs"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Tambah Siswa</span>
+            </button>
+          </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2.5">
-          <button
-            onClick={handleExportExcel}
-            className="flex items-center gap-2 px-3.5 py-2 rounded-xl border border-slate-300 text-slate-700 bg-white hover:bg-slate-50 text-xs font-semibold transition"
-          >
-            <Download className="w-4 h-4 text-emerald-600" />
-            <span>Export Excel</span>
-          </button>
+        {/* Search & Compact Responsive Filters */}
+        <div className="pt-2 border-t border-slate-100 grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-2">
+          {/* Search */}
+          <div className="relative col-span-2 lg:col-span-2">
+            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Cari nama, NIS, no HP..."
+              className="w-full pl-8 pr-2.5 py-1.5 text-xs font-medium rounded-lg sm:rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-700 bg-slate-50/50"
+            />
+          </div>
 
-          <button
-            onClick={handleOpenAdd}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-800 hover:bg-emerald-700 text-white text-xs font-semibold transition shadow-sm"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Tambah Siswa Baru</span>
-          </button>
+          {/* Jenjang */}
+          <div>
+            <select
+              value={unitFilter}
+              onChange={(e) => setUnitFilter(e.target.value as any)}
+              className="w-full py-1.5 px-2.5 text-xs font-medium rounded-lg sm:rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-700 bg-white"
+            >
+              <option value="ALL">Semua Jenjang</option>
+              <option value="SMP IT">SMP IT</option>
+              <option value="SMA IT">SMA IT</option>
+              <option value="SD IT">SD IT</option>
+              <option value="TK IT">TK IT</option>
+            </select>
+          </div>
+
+          {/* Kelas */}
+          <div>
+            <select
+              value={gradeFilter}
+              onChange={(e) => setGradeFilter(e.target.value)}
+              className="w-full py-1.5 px-2.5 text-xs font-medium rounded-lg sm:rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-700 bg-white"
+            >
+              <option value="ALL">Semua Kelas</option>
+              <option value="VII">Kelas VII</option>
+              <option value="VIII">Kelas VIII</option>
+              <option value="IX">Kelas IX</option>
+              <option value="X">Kelas X</option>
+              <option value="XI">Kelas XI</option>
+              <option value="XII">Kelas XII</option>
+            </select>
+          </div>
+
+          {/* Status Administrasi */}
+          <div className="col-span-2 sm:col-span-1">
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value as any)}
+              className="w-full py-1.5 px-2.5 text-xs font-medium rounded-lg sm:rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-700 bg-white"
+            >
+              <option value="ALL">Semua Kategori</option>
+              <option value="Mampu">Mampu</option>
+              <option value="Yatim">Yatim</option>
+              <option value="Dhuafa">Dhuafa</option>
+              <option value="Beasiswa">Beasiswa</option>
+              <option value="Rekomendasi">Rekomendasi</option>
+            </select>
+          </div>
         </div>
       </div>
 
-      {/* Search & Filters */}
-      <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-        {/* Search */}
-        <div className="relative lg:col-span-2">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Cari nama, NIS, atau no HP..."
-            className="w-full pl-9 pr-3 py-2 text-xs font-medium rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-700 bg-slate-50/50"
-          />
-        </div>
-
-        {/* Jenjang */}
-        <div>
-          <select
-            value={unitFilter}
-            onChange={(e) => setUnitFilter(e.target.value as any)}
-            className="w-full py-2 px-3 text-xs font-medium rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-700 bg-white"
-          >
-            <option value="ALL">Semua Jenjang</option>
-            <option value="SMP IT">SMP IT</option>
-            <option value="SMA IT">SMA IT</option>
-            <option value="SD IT">SD IT</option>
-            <option value="TK IT">TK IT</option>
-          </select>
-        </div>
-
-        {/* Kelas */}
-        <div>
-          <select
-            value={gradeFilter}
-            onChange={(e) => setGradeFilter(e.target.value)}
-            className="w-full py-2 px-3 text-xs font-medium rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-700 bg-white"
-          >
-            <option value="ALL">Semua Kelas</option>
-            <option value="VII">Kelas VII</option>
-            <option value="VIII">Kelas VIII</option>
-            <option value="IX">Kelas IX</option>
-            <option value="X">Kelas X</option>
-            <option value="XI">Kelas XI</option>
-            <option value="XII">Kelas XII</option>
-          </select>
-        </div>
-
-        {/* Status Administrasi */}
-        <div>
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as any)}
-            className="w-full py-2 px-3 text-xs font-medium rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-700 bg-white"
-          >
-            <option value="ALL">Semua Kategori</option>
-            <option value="Mampu">Mampu</option>
-            <option value="Yatim">Yatim</option>
-            <option value="Dhuafa">Dhuafa</option>
-            <option value="Beasiswa">Beasiswa</option>
-            <option value="Rekomendasi">Rekomendasi</option>
-          </select>
-        </div>
-      </div>
-
-      {/* Students Table */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse text-xs">
-            <thead>
+      {/* Students Table with Sticky Pinned Headers */}
+      <div className="bg-white rounded-xl sm:rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+        <div className="overflow-x-auto max-h-[calc(100vh-210px)] overflow-y-auto">
+          <table className="w-full text-left border-collapse text-xs whitespace-nowrap">
+            <thead className="sticky top-0 z-20">
               <tr className="bg-slate-50 text-slate-600 font-bold uppercase tracking-wider text-[11px] border-b border-slate-200">
-                <th className="py-3.5 px-4 w-12 text-center">No</th>
-                <th className="py-3.5 px-4">Nama Lengkap</th>
-                <th className="py-3.5 px-4">NIS / No Rekening</th>
-                <th className="py-3.5 px-4">JK</th>
-                <th className="py-3.5 px-4">Jenjang & Kelas</th>
-                <th className="py-3.5 px-4">Kategori Administrasi</th>
-                <th className="py-3.5 px-4">Kontak / WhatsApp</th>
-                <th className="py-3.5 px-4 text-center">Status</th>
-                <th className="py-3.5 px-4 text-center">Aksi</th>
+                <th className="py-2.5 px-3 w-10 text-center sticky left-0 z-30 bg-slate-50 border-r border-slate-200">No</th>
+                <th className="py-2.5 px-3.5 sticky left-10 z-30 bg-slate-50 min-w-[170px] border-r border-slate-200 shadow-[2px_0_4px_-1px_rgba(0,0,0,0.06)]">Nama Lengkap</th>
+                <th className="py-2.5 px-3">NIS / No Rekening</th>
+                <th className="py-2.5 px-2.5 text-center">JK</th>
+                <th className="py-2.5 px-3">Jenjang & Kelas</th>
+                <th className="py-2.5 px-3">Kategori Administrasi</th>
+                <th className="py-2.5 px-3">Kontak / WhatsApp</th>
+                <th className="py-2.5 px-3 text-center">Status</th>
+                <th className="py-2.5 px-3 text-center">Aksi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">

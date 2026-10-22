@@ -289,208 +289,215 @@ export const FinancialReportPage: React.FC = () => {
   };
 
   return (
-    <div className="space-y-5 pb-12">
-      <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div className="space-y-3 pb-8">
+      {/* Dense Desktop-Style Toolbar */}
+      <div className="bg-white rounded-xl p-3 border border-slate-200 shadow-2xs flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h3 className="text-lg font-bold text-slate-800">Laporan Keuangan & Rekapitulasi</h3>
-          <p className="text-xs text-slate-500">
-            Laporan penerimaan dana per bulan, kategori pembiayaan, dan komparasi antar jenjang
+          <h3 className="text-sm font-bold text-slate-800 leading-tight">Laporan Keuangan & Rekapitulasi</h3>
+          <p className="text-[11px] text-slate-500">
+            Laporan penerimaan SPP, kategori tagihan, dan komparasi unit (T.A. {selectedAcademicYear?.name || 'Aktif'})
           </p>
         </div>
 
         <button
           onClick={handleExportCurrentTab}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-800 hover:bg-emerald-700 text-white text-xs font-bold transition shadow-sm"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-800 hover:bg-emerald-700 text-white text-[11px] font-bold transition shadow-2xs"
         >
-          <Download className="w-4 h-4 text-gold-400" />
-          <span>Export Laporan Excel</span>
+          <Download className="w-3.5 h-3.5 text-gold-400" />
+          <span>Export Excel</span>
         </button>
       </div>
 
-      <div className="flex border-b border-slate-200 gap-2">
+      {/* Horizontally scrollable tabs */}
+      <div className="flex border-b border-slate-200 gap-1 overflow-x-auto no-scrollbar whitespace-nowrap bg-white p-1 rounded-xl shadow-2xs">
         <button
           onClick={() => setActiveReportTab('monthly')}
-          className={`py-3 px-4 font-bold text-xs border-b-2 transition ${
+          className={`py-2 px-3 font-bold text-xs rounded-lg transition shrink-0 ${
             activeReportTab === 'monthly'
-              ? 'border-emerald-800 text-emerald-900 bg-emerald-50/50 rounded-t-xl'
-              : 'border-transparent text-slate-500 hover:text-slate-800'
+              ? 'bg-emerald-800 text-white shadow-2xs'
+              : 'text-slate-600 hover:bg-slate-100'
           }`}
         >
-          Laporan Pemasukan SPP Per Bulan
+          Pemasukan SPP Per Bulan
         </button>
         <button
           onClick={() => setActiveReportTab('categories')}
-          className={`py-3 px-4 font-bold text-xs border-b-2 transition ${
+          className={`py-2 px-3 font-bold text-xs rounded-lg transition shrink-0 ${
             activeReportTab === 'categories'
-              ? 'border-emerald-800 text-emerald-900 bg-emerald-50/50 rounded-t-xl'
-              : 'border-transparent text-slate-500 hover:text-slate-800'
+              ? 'bg-emerald-800 text-white shadow-2xs'
+              : 'text-slate-600 hover:bg-slate-100'
           }`}
         >
-          Laporan Per Kategori Pembiayaan
+          Per Kategori Pembiayaan
         </button>
         <button
           onClick={() => setActiveReportTab('units')}
-          className={`py-3 px-4 font-bold text-xs border-b-2 transition ${
+          className={`py-2 px-3 font-bold text-xs rounded-lg transition shrink-0 ${
             activeReportTab === 'units'
-              ? 'border-emerald-800 text-emerald-900 bg-emerald-50/50 rounded-t-xl'
-              : 'border-transparent text-slate-500 hover:text-slate-800'
+              ? 'bg-emerald-800 text-white shadow-2xs'
+              : 'text-slate-600 hover:bg-slate-100'
           }`}
         >
-          Rekapitulasi Unit SMP IT & SMA IT
+          Rekapitulasi Unit SMP IT &amp; SMA IT
         </button>
       </div>
 
       {activeReportTab === 'monthly' && (
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-          <table className="w-full text-left border-collapse text-xs">
-            <thead>
-              <tr className="bg-slate-50 text-slate-600 font-bold uppercase tracking-wider text-[11px] border-b border-slate-200">
-                <th className="py-3 px-4 w-12 text-center">No</th>
-                <th className="py-3 px-4">Bulan</th>
-                <th className="py-3 px-4 text-right">Target SPP</th>
-                <th className="py-3 px-4 text-right">Pemasukan Diterima</th>
-                <th className="py-3 px-4 text-right">Tertunggak</th>
-                <th className="py-3 px-4 text-center">Realisasi</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 font-medium">
-              {monthlyData.map((m, idx) => (
-                <tr key={m.month} className="hover:bg-slate-50/60">
-                  <td className="py-3 px-4 text-center text-slate-400 font-bold">{idx + 1}</td>
-                  <td className="py-3 px-4 font-bold text-slate-800">{m.month}</td>
-                  <td className="py-3 px-4 text-right text-slate-700">
-                    Rp{m.targetAmount.toLocaleString('id-ID')}
+        <div className="bg-white rounded-xl border border-slate-200 shadow-2xs overflow-hidden">
+          <div className="overflow-x-auto max-h-[calc(100vh-230px)] overflow-y-auto">
+            <table className="w-full text-left border-collapse text-xs">
+              <thead className="sticky top-0 z-20 bg-slate-100 shadow-2xs">
+                <tr className="text-slate-600 font-bold uppercase tracking-wider text-[10px] border-b border-slate-200">
+                  <th className="py-2.5 px-3 w-10 text-center sticky left-0 bg-slate-100 z-20">No</th>
+                  <th className="py-2.5 px-3 sticky left-10 bg-slate-100 z-20 min-w-[120px]">Bulan</th>
+                  <th className="py-2.5 px-3 text-right min-w-[110px]">Target SPP</th>
+                  <th className="py-2.5 px-3 text-right min-w-[110px]">Diterima</th>
+                  <th className="py-2.5 px-3 text-right min-w-[110px]">Tertunggak</th>
+                  <th className="py-2.5 px-3 text-center min-w-[90px]">Realisasi</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 font-medium">
+                {monthlyData.map((m, idx) => (
+                  <tr key={m.month} className="hover:bg-slate-50/60 group">
+                    <td className="py-2 px-3 text-center text-slate-400 font-bold sticky left-0 bg-white group-hover:bg-slate-50 z-10">{idx + 1}</td>
+                    <td className="py-2 px-3 font-bold text-slate-800 sticky left-10 bg-white group-hover:bg-slate-50 z-10 whitespace-nowrap">{m.month}</td>
+                    <td className="py-2 px-3 text-right text-slate-700 whitespace-nowrap">
+                      Rp{m.targetAmount.toLocaleString('id-ID')}
+                    </td>
+                    <td className="py-2 px-3 text-right font-bold text-emerald-700 whitespace-nowrap">
+                      Rp{m.receivedAmount.toLocaleString('id-ID')}
+                    </td>
+                    <td className="py-2 px-3 text-right font-bold text-rose-600 whitespace-nowrap">
+                      Rp{m.remainingAmount.toLocaleString('id-ID')}
+                    </td>
+                    <td className="py-2 px-3 text-center whitespace-nowrap">
+                      <span
+                        className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-black ${
+                          m.percentage >= 80
+                            ? 'bg-emerald-100 text-emerald-800'
+                            : m.percentage >= 40
+                            ? 'bg-amber-100 text-amber-800'
+                            : 'bg-rose-100 text-rose-800'
+                        }`}
+                      >
+                        {m.percentage.toFixed(1)}%
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot className="sticky bottom-0 z-20 bg-slate-100 border-t-2 border-slate-300">
+                <tr className="font-black text-slate-900 text-xs">
+                  <td className="py-2.5 px-3 text-center sticky left-0 bg-slate-100 z-20" colSpan={2}>
+                    TOTAL SPP (JULI - JUNI)
                   </td>
-                  <td className="py-3 px-4 text-right font-bold text-emerald-700">
-                    Rp{m.receivedAmount.toLocaleString('id-ID')}
+                  <td className="py-2.5 px-3 text-right whitespace-nowrap">
+                    Rp{monthlyData.reduce((s, m) => s + m.targetAmount, 0).toLocaleString('id-ID')}
                   </td>
-                  <td className="py-3 px-4 text-right font-bold text-rose-600">
-                    Rp{m.remainingAmount.toLocaleString('id-ID')}
+                  <td className="py-2.5 px-3 text-right text-emerald-800 whitespace-nowrap">
+                    Rp{monthlyData.reduce((s, m) => s + m.receivedAmount, 0).toLocaleString('id-ID')}
                   </td>
-                  <td className="py-3 px-4 text-center">
-                    <span
-                      className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-black ${
-                        m.percentage >= 80
-                          ? 'bg-emerald-100 text-emerald-800'
-                          : m.percentage >= 40
-                          ? 'bg-amber-100 text-amber-800'
-                          : 'bg-rose-100 text-rose-800'
-                      }`}
-                    >
-                      {m.percentage.toFixed(1)}%
-                    </span>
+                  <td className="py-2.5 px-3 text-right text-rose-700 whitespace-nowrap">
+                    Rp{monthlyData.reduce((s, m) => s + m.remainingAmount, 0).toLocaleString('id-ID')}
+                  </td>
+                  <td className="py-2.5 px-3 text-center whitespace-nowrap">
+                    {(
+                      (monthlyData.reduce((s, m) => s + m.receivedAmount, 0) /
+                        (monthlyData.reduce((s, m) => s + m.targetAmount, 0) || 1)) *
+                      100
+                    ).toFixed(1)}
+                    %
                   </td>
                 </tr>
-              ))}
-            </tbody>
-            <tfoot>
-              <tr className="bg-slate-100 font-black text-slate-900 border-t-2 border-slate-300">
-                <td className="py-3 px-4 text-center" colSpan={2}>
-                  TOTAL SPP (JULI - JUNI)
-                </td>
-                <td className="py-3 px-4 text-right">
-                  Rp{monthlyData.reduce((s, m) => s + m.targetAmount, 0).toLocaleString('id-ID')}
-                </td>
-                <td className="py-3 px-4 text-right text-emerald-800">
-                  Rp{monthlyData.reduce((s, m) => s + m.receivedAmount, 0).toLocaleString('id-ID')}
-                </td>
-                <td className="py-3 px-4 text-right text-rose-700">
-                  Rp{monthlyData.reduce((s, m) => s + m.remainingAmount, 0).toLocaleString('id-ID')}
-                </td>
-                <td className="py-3 px-4 text-center">
-                  {(
-                    (monthlyData.reduce((s, m) => s + m.receivedAmount, 0) /
-                      (monthlyData.reduce((s, m) => s + m.targetAmount, 0) || 1)) *
-                    100
-                  ).toFixed(1)}
-                  %
-                </td>
-              </tr>
-            </tfoot>
-          </table>
+              </tfoot>
+            </table>
+          </div>
         </div>
       )}
 
       {activeReportTab === 'categories' && (
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-          <table className="w-full text-left border-collapse text-xs">
-            <thead>
-              <tr className="bg-slate-50 text-slate-600 font-bold uppercase tracking-wider text-[11px] border-b border-slate-200">
-                <th className="py-3 px-4 w-12 text-center">No</th>
-                <th className="py-3 px-4">Kategori Tagihan</th>
-                <th className="py-3 px-4 text-right">Total Tagihan</th>
-                <th className="py-3 px-4 text-right">Pemasukan Diterima</th>
-                <th className="py-3 px-4 text-right">Sisa Tagihan</th>
-                <th className="py-3 px-4 text-center">Persentase</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 font-medium">
-              {categoryData.map((c, idx) => (
-                <tr key={c.categoryName} className="hover:bg-slate-50/60">
-                  <td className="py-3 px-4 text-center text-slate-400 font-bold">{idx + 1}</td>
-                  <td className="py-3 px-4 font-bold text-slate-800">{c.categoryName}</td>
-                  <td className="py-3 px-4 text-right text-slate-700">
-                    Rp{c.totalBills.toLocaleString('id-ID')}
-                  </td>
-                  <td className="py-3 px-4 text-right font-bold text-emerald-700">
-                    Rp{c.totalReceived.toLocaleString('id-ID')}
-                  </td>
-                  <td className="py-3 px-4 text-right font-bold text-rose-600">
-                    Rp{c.remaining.toLocaleString('id-ID')}
-                  </td>
-                  <td className="py-3 px-4 text-center">
-                    <span className="font-bold text-slate-700">{c.percentage.toFixed(1)}%</span>
-                  </td>
+        <div className="bg-white rounded-xl border border-slate-200 shadow-2xs overflow-hidden">
+          <div className="overflow-x-auto max-h-[calc(100vh-230px)] overflow-y-auto">
+            <table className="w-full text-left border-collapse text-xs">
+              <thead className="sticky top-0 z-20 bg-slate-100 shadow-2xs">
+                <tr className="text-slate-600 font-bold uppercase tracking-wider text-[10px] border-b border-slate-200">
+                  <th className="py-2.5 px-3 w-10 text-center sticky left-0 bg-slate-100 z-20">No</th>
+                  <th className="py-2.5 px-3 sticky left-10 bg-slate-100 z-20 min-w-[150px]">Kategori Tagihan</th>
+                  <th className="py-2.5 px-3 text-right min-w-[110px]">Total Tagihan</th>
+                  <th className="py-2.5 px-3 text-right min-w-[110px]">Diterima</th>
+                  <th className="py-2.5 px-3 text-right min-w-[110px]">Sisa Tagihan</th>
+                  <th className="py-2.5 px-3 text-center min-w-[90px]">Persentase</th>
                 </tr>
-              ))}
-            </tbody>
-            <tfoot>
-              <tr className="bg-slate-100 font-black text-slate-900 border-t-2 border-slate-300">
-                <td className="py-3 px-4 text-center" colSpan={2}>
-                  TOTAL SELURUH KATEGORI
-                </td>
-                <td className="py-3 px-4 text-right">
-                  Rp{categoryData.reduce((s, c) => s + c.totalBills, 0).toLocaleString('id-ID')}
-                </td>
-                <td className="py-3 px-4 text-right text-emerald-800">
-                  Rp{categoryData.reduce((s, c) => s + c.totalReceived, 0).toLocaleString('id-ID')}
-                </td>
-                <td className="py-3 px-4 text-right text-rose-700">
-                  Rp{categoryData.reduce((s, c) => s + c.remaining, 0).toLocaleString('id-ID')}
-                </td>
-                <td className="py-3 px-4 text-center">-</td>
-              </tr>
-            </tfoot>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-slate-100 font-medium">
+                {categoryData.map((c, idx) => (
+                  <tr key={c.categoryName} className="hover:bg-slate-50/60 group">
+                    <td className="py-2 px-3 text-center text-slate-400 font-bold sticky left-0 bg-white group-hover:bg-slate-50 z-10">{idx + 1}</td>
+                    <td className="py-2 px-3 font-bold text-slate-800 sticky left-10 bg-white group-hover:bg-slate-50 z-10 whitespace-nowrap">{c.categoryName}</td>
+                    <td className="py-2 px-3 text-right text-slate-700 whitespace-nowrap">
+                      Rp{c.totalBills.toLocaleString('id-ID')}
+                    </td>
+                    <td className="py-2 px-3 text-right font-bold text-emerald-700 whitespace-nowrap">
+                      Rp{c.totalReceived.toLocaleString('id-ID')}
+                    </td>
+                    <td className="py-2 px-3 text-right font-bold text-rose-600 whitespace-nowrap">
+                      Rp{c.remaining.toLocaleString('id-ID')}
+                    </td>
+                    <td className="py-2 px-3 text-center whitespace-nowrap">
+                      <span className="font-bold text-slate-700">{c.percentage.toFixed(1)}%</span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot className="sticky bottom-0 z-20 bg-slate-100 border-t-2 border-slate-300">
+                <tr className="font-black text-slate-900 text-xs">
+                  <td className="py-2.5 px-3 text-center sticky left-0 bg-slate-100 z-20" colSpan={2}>
+                    TOTAL SELURUH KATEGORI
+                  </td>
+                  <td className="py-2.5 px-3 text-right whitespace-nowrap">
+                    Rp{categoryData.reduce((s, c) => s + c.totalBills, 0).toLocaleString('id-ID')}
+                  </td>
+                  <td className="py-2.5 px-3 text-right text-emerald-800 whitespace-nowrap">
+                    Rp{categoryData.reduce((s, c) => s + c.totalReceived, 0).toLocaleString('id-ID')}
+                  </td>
+                  <td className="py-2.5 px-3 text-right text-rose-700 whitespace-nowrap">
+                    Rp{categoryData.reduce((s, c) => s + c.remaining, 0).toLocaleString('id-ID')}
+                  </td>
+                  <td className="py-2.5 px-3 text-center whitespace-nowrap">-</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
         </div>
       )}
 
       {activeReportTab === 'units' && (
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-          <table className="w-full text-left border-collapse text-xs">
-            <thead>
-              <tr className="bg-slate-50 text-slate-600 font-bold uppercase tracking-wider text-[11px] border-b border-slate-200">
-                <th className="py-3 px-4 w-12 text-center">No</th>
-                <th className="py-3 px-4">Jenjang Unit</th>
-                <th className="py-3 px-4 text-center">Jumlah Siswa</th>
-                <th className="py-3 px-4 text-right">Total Tagihan</th>
-                <th className="py-3 px-4 text-right">Total Pemasukan</th>
-                <th className="py-3 px-4 text-right">Total Tunggakan</th>
-              </tr>
-            </thead>
+        <div className="bg-white rounded-xl border border-slate-200 shadow-2xs overflow-hidden">
+          <div className="overflow-x-auto max-h-[calc(100vh-230px)] overflow-y-auto">
+            <table className="w-full text-left border-collapse text-xs">
+              <thead className="sticky top-0 z-20 bg-slate-100 shadow-2xs">
+                <tr className="text-slate-600 font-bold uppercase tracking-wider text-[10px] border-b border-slate-200">
+                  <th className="py-2.5 px-3 w-10 text-center sticky left-0 bg-slate-100 z-20">No</th>
+                  <th className="py-2.5 px-3 sticky left-10 bg-slate-100 z-20 min-w-[120px]">Jenjang Unit</th>
+                  <th className="py-2.5 px-3 text-center min-w-[100px]">Jumlah Siswa</th>
+                  <th className="py-2.5 px-3 text-right min-w-[110px]">Total Tagihan</th>
+                  <th className="py-2.5 px-3 text-right min-w-[110px]">Total Pemasukan</th>
+                  <th className="py-2.5 px-3 text-right min-w-[110px]">Total Tunggakan</th>
+                </tr>
+              </thead>
             <tbody className="divide-y divide-slate-100 font-medium">
               {unitData.map((u, idx) => (
-                <tr key={u.unit} className="hover:bg-slate-50/60">
-                  <td className="py-3 px-4 text-center text-slate-400 font-bold">{idx + 1}</td>
-                  <td className="py-3 px-4 font-bold text-slate-800">{u.unit}</td>
-                  <td className="py-3 px-4 text-center font-bold text-slate-700">{u.studentCount} siswa</td>
-                  <td className="py-3 px-4 text-right text-slate-700">
+                <tr key={u.unit} className="hover:bg-slate-50/60 group">
+                  <td className="py-2 px-3 text-center text-slate-400 font-bold sticky left-0 bg-white group-hover:bg-slate-50 z-10">{idx + 1}</td>
+                  <td className="py-2 px-3 font-bold text-slate-800 sticky left-10 bg-white group-hover:bg-slate-50 z-10 whitespace-nowrap">{u.unit}</td>
+                  <td className="py-2 px-3 text-center font-bold text-slate-700 whitespace-nowrap">{u.studentCount} siswa</td>
+                  <td className="py-2 px-3 text-right text-slate-700 whitespace-nowrap">
                     Rp{u.totalBills.toLocaleString('id-ID')}
                   </td>
-                  <td className="py-3 px-4 text-right font-bold text-emerald-700">
+                  <td className="py-2 px-3 text-right font-bold text-emerald-700 whitespace-nowrap">
                     Rp{u.totalReceived.toLocaleString('id-ID')}
                   </td>
-                  <td className="py-3 px-4 text-right font-bold text-rose-600">
+                  <td className="py-2 px-3 text-right font-bold text-rose-600 whitespace-nowrap">
                     Rp{u.totalArrears.toLocaleString('id-ID')}
                   </td>
                 </tr>
@@ -498,6 +505,7 @@ export const FinancialReportPage: React.FC = () => {
             </tbody>
           </table>
         </div>
+      </div>
       )}
     </div>
   );
