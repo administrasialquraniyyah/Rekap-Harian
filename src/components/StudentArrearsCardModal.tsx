@@ -190,7 +190,7 @@ export const StudentArrearsCardModal: React.FC<StudentArrearsCardModalProps> = (
     text += `Dengan ini kami sampaikan rincian kewajiban pembayaran yang masih tercatat pada sistem keuangan:\n\n`;
 
     studentArrears.years.forEach((y) => {
-      const unpaidItems = y.bills_detail.filter((b) => b.remaining > 0);
+      const unpaidItems = y.bills_detail.filter((b) => b.remaining > 0 && b.status !== 'Akan Berlangsung');
       if (unpaidItems.length > 0) {
         text += `📌 *Tahun Ajaran ${y.academic_year_name} (Kelas ${y.grade})*\n`;
         unpaidItems.forEach((b) => {
@@ -470,8 +470,11 @@ export const StudentArrearsCardModal: React.FC<StudentArrearsCardModalProps> = (
               }`}
             >
               {studentArrears.years.map((year) => {
+                // Saring tagihan agar tidak menyertakan status 'Akan Berlangsung' (hanya tagihan yang sudah/sedang berjalan)
+                const activeBills = year.bills_detail.filter((b) => b.status !== 'Akan Berlangsung');
+
                 // Urutkan bills secara kronologis: SPP (Juli s.d. Juni), kemudian non-SPP
-                const sortedBills = [...year.bills_detail].sort((a, b) => {
+                const sortedBills = [...activeBills].sort((a, b) => {
                   const isSppA = isSpp(a);
                   const isSppB = isSpp(b);
                   if (isSppA && !isSppB) return -1;
