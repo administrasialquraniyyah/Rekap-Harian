@@ -348,7 +348,7 @@ export const DashboardPage: React.FC = () => {
         else catName = 'Lainnya';
 
         const isSpp = catName === 'SPP';
-        const isUpcoming = isSpp && isUpcomingSPPMonth(bill.billing_period);
+        const isUpcoming = isSpp && isUpcomingSPPMonth(bill.billing_period, selectedAcademicYear);
 
         if (bill.status !== 'Bebas') {
           sumBills += billAmount;

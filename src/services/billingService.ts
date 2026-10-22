@@ -16,11 +16,40 @@ export function getCurrentActiveSPPMonth(): string {
   return monthNames[now.getMonth()] || 'Oktober';
 }
 
-export function isUpcomingSPPMonth(billingPeriod: string | null | undefined, activeMonth: string = getCurrentActiveSPPMonth()): boolean {
+export function isUpcomingSPPMonth(
+  billingPeriod: string | null | undefined,
+  academicYearOrStatus?: { status?: string; name?: string } | string | null,
+  activeMonth?: string
+): boolean {
   if (!billingPeriod) return false;
+
+  let effectiveActiveMonth = getCurrentActiveSPPMonth();
+  let effectiveYearStatus: string | null = null;
+
+  if (typeof academicYearOrStatus === 'string') {
+    // If it's a known month name, it was passed as activeMonth
+    if (SPP_MONTHS.some(m => m.toLowerCase() === academicYearOrStatus.toLowerCase())) {
+      effectiveActiveMonth = academicYearOrStatus;
+    } else {
+      effectiveYearStatus = academicYearOrStatus;
+    }
+  } else if (academicYearOrStatus && typeof academicYearOrStatus === 'object') {
+    effectiveYearStatus = academicYearOrStatus.status || null;
+  }
+
+  if (activeMonth) {
+    effectiveActiveMonth = activeMonth;
+  }
+
+  // If the academic year is explicitly NOT active (e.g. 'archived'), it is in the past!
+  // No month in a past/archived academic year is upcoming; all 12 months have elapsed.
+  if (effectiveYearStatus && effectiveYearStatus !== 'active') {
+    return false;
+  }
+
   const periodIndex = SPP_MONTHS.findIndex(m => m.toLowerCase() === billingPeriod.trim().toLowerCase());
   if (periodIndex === -1) return false;
-  const activeIndex = SPP_MONTHS.findIndex(m => m.toLowerCase() === activeMonth.trim().toLowerCase());
+  const activeIndex = SPP_MONTHS.findIndex(m => m.toLowerCase() === effectiveActiveMonth.trim().toLowerCase());
   if (activeIndex === -1) return false;
   return periodIndex > activeIndex;
 }
@@ -100,7 +129,7 @@ export const billingService = {
 
         const catName = cat?.name || '';
         const isSpp = catName.toLowerCase().includes('spp') || catName.toLowerCase().includes('syahriyyah');
-        const isUpcoming = isSpp && isUpcomingSPPMonth(b.billing_period);
+        const isUpcoming = isSpp && isUpcomingSPPMonth(b.billing_period, yr);
 
         let calculatedStatus: BillStatus = 'Belum Dibayar';
         if (b.status === 'Bebas') calculatedStatus = 'Bebas';
@@ -164,7 +193,7 @@ export const billingService = {
 
         const catName = bill.category?.name || '';
         const isSpp = catName.toLowerCase().includes('spp') || catName.toLowerCase().includes('syahriyyah');
-        const isUpcoming = isSpp && isUpcomingSPPMonth(bill.billing_period);
+        const isUpcoming = isSpp && isUpcomingSPPMonth(bill.billing_period, bill.academic_year);
 
         let calculatedStatus: BillStatus = 'Belum Dibayar';
         if (bill.status === 'Bebas') {
@@ -247,6 +276,7 @@ export const billingService = {
           .select(`
             *,
             category:billing_categories(*),
+            academic_year:academic_years(*),
             student:students(*),
             allocations:payment_allocations(
               id,
@@ -293,7 +323,7 @@ export const billingService = {
 
         const catName = bill.category?.name || '';
         const isSpp = catName.toLowerCase().includes('spp') || catName.toLowerCase().includes('syahriyyah');
-        const isUpcoming = isSpp && isUpcomingSPPMonth(bill.billing_period);
+        const isUpcoming = isSpp && isUpcomingSPPMonth(bill.billing_period, bill.academic_year);
 
         let calculatedStatus: BillStatus = 'Belum Dibayar';
         if (bill.status === 'Bebas') {

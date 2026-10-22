@@ -114,6 +114,7 @@ export const PaymentRecapPage: React.FC = () => {
         billsByStudent[b.student_id].push(b);
       });
 
+      const isAcademicYearActive = selectedAcademicYear?.status === 'active';
       const activeMonthIndex = SPP_MONTHS.indexOf(activeMonthLimit);
 
       const rows: RecapRow[] = students.map((s) => {
@@ -127,7 +128,7 @@ export const PaymentRecapPage: React.FC = () => {
 
         SPP_MONTHS.forEach((month, mIdx) => {
           const mBill = sppBills.find((b) => b.billing_period?.toLowerCase() === month.toLowerCase());
-          const isUpcoming = mIdx > activeMonthIndex;
+          const isUpcoming = isAcademicYearActive ? (mIdx > activeMonthIndex) : false;
 
           if (!mBill) {
             sppMonthsMap[month] = {

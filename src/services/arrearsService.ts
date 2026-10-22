@@ -72,11 +72,12 @@ export const arrearsService = {
             const amt = Number(b.amount || 0);
             const rem = Math.max(0, amt - paid);
 
+            const isYearActive = yr.status === 'active';
             let st: BillStatus = 'Belum Dibayar';
             if (b.status === 'Bebas') st = 'Bebas';
-            else if (b.status === 'Akan Berlangsung' && paid === 0) st = 'Akan Berlangsung';
             else if (paid >= amt && amt > 0) st = 'Lunas';
             else if (paid > 0) st = 'Belum Lunas';
+            else if (b.status === 'Akan Berlangsung' && isYearActive && paid === 0) st = 'Akan Berlangsung';
 
             return {
               bill_id: b.id,
@@ -205,7 +206,7 @@ export const arrearsService = {
             amount,
             status,
             category:billing_categories(id, name, category_type),
-            academic_year:academic_years(id, name, start_date),
+            academic_year:academic_years(id, name, status, start_date),
             allocations:payment_allocations(
               allocated_amount,
               payment:payments(status)
@@ -255,7 +256,8 @@ export const arrearsService = {
         const catObj: any = Array.isArray(bill.category) ? bill.category[0] : bill.category;
         const catName = catObj?.name || 'Tagihan';
         const isSpp = catName.toLowerCase().includes('spp') || catName.toLowerCase().includes('syahriyyah');
-        const isUpcoming = isSpp && isUpcomingSPPMonth(bill.billing_period);
+        const academicYearObj: any = Array.isArray(bill.academic_year) ? bill.academic_year[0] : bill.academic_year;
+        const isUpcoming = isSpp && isUpcomingSPPMonth(bill.billing_period, academicYearObj);
 
         let calcStatus: BillStatus = 'Belum Dibayar';
         if (bill.status === 'Bebas') {
