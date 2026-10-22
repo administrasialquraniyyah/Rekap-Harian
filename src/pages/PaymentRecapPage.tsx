@@ -403,240 +403,250 @@ export const PaymentRecapPage: React.FC = () => {
   };
 
   return (
-    <div className="space-y-5 pb-12">
-      {/* Top Header */}
-      <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
+    <div className="space-y-2.5 sm:space-y-3.5 pb-8">
+      {/* Unified Compact Control Panel (Desktop & Mobile Optimized) */}
+      <div className="bg-white rounded-xl sm:rounded-2xl p-3 sm:p-4 border border-slate-200 shadow-xs space-y-2.5">
+        {/* Row 1: Title Badge & Action Buttons in a single responsive row */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
           <div className="flex items-center gap-2">
-            <h3 className="text-lg font-bold text-slate-800">
-              Rekap Pembayaran Siswa (Juli - Juni)
+            <h3 className="text-sm sm:text-base font-bold text-slate-800 flex items-center gap-1.5 sm:gap-2">
+              <TableProperties className="w-4 h-4 text-emerald-800 shrink-0" />
+              <span>Rekap Pembayaran (Juli – Juni)</span>
             </h3>
-            <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-black uppercase tracking-wide">
-              ⚡ Klik Sel Untuk Edit Langsung
+            <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-black uppercase tracking-wide whitespace-nowrap">
+              ⚡ Edit Langsung
             </span>
           </div>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Klik sel mana saja untuk mengisi tanggal pembayaran atau nominal, persis seperti mengisi di Excel.
-          </p>
+
+          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+            {/* Active Month Selector */}
+            <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-300 rounded-lg sm:rounded-xl px-2 py-1 text-xs">
+              <Calendar className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+              <span className="text-slate-500 font-semibold text-[11px] sm:text-xs">Bulan:</span>
+              <select
+                value={activeMonthLimit}
+                onChange={(e) => setActiveMonthLimit(e.target.value)}
+                className="bg-transparent font-bold text-emerald-900 focus:outline-none cursor-pointer text-xs"
+                title="Bulan setelahnya akan berstatus 'Akan Berlangsung' dan tidak dihitung tunggakan"
+              >
+                {SPP_MONTHS.map((m) => (
+                  <option key={m} value={m}>
+                    {m}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Refresh Button */}
+            <button
+              onClick={loadRecap}
+              disabled={isLoading}
+              className="p-1.5 rounded-lg sm:rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-600 transition shrink-0"
+              title="Refresh Data"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
+            </button>
+
+            {/* Export Belum Bayar SPP Button */}
+            <button
+              onClick={() => setShowUnpaidExportModal(true)}
+              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg sm:rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold transition shadow-xs"
+              title="Export Excel Siswa yang belum bayar SPP per bulan tertentu"
+            >
+              <AlertCircle className="w-3.5 h-3.5 text-amber-200 shrink-0" />
+              <span className="hidden sm:inline">Export Belum Bayar SPP</span>
+              <span className="sm:hidden">Export SPP</span>
+            </button>
+
+            {/* Export Matriks Lengkap Button */}
+            <button
+              onClick={handleExport}
+              className="flex items-center gap-1.5 px-2.5 sm:px-3.5 py-1.5 rounded-lg sm:rounded-xl bg-emerald-800 hover:bg-emerald-700 text-white text-xs font-bold transition shadow-xs"
+              title="Export Matriks Lengkap ke format Excel"
+            >
+              <Download className="w-3.5 h-3.5 text-amber-300 shrink-0" />
+              <span className="hidden sm:inline">Export Matriks Lengkap</span>
+              <span className="sm:hidden">Matriks</span>
+            </button>
+          </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2.5">
-          {/* Active Month Selector */}
-          <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-300 rounded-xl px-2.5 py-1 text-xs">
-            <Calendar className="w-3.5 h-3.5 text-emerald-700" />
-            <span className="text-slate-600 font-semibold">Bulan Berjalan:</span>
+        {/* Row 2: Compact Responsive Filters (Desktop Toolbar Style) */}
+        <div className="pt-2 border-t border-slate-100 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-1.5 sm:gap-2">
+          {/* Search Input */}
+          <div className="relative col-span-2 sm:col-span-1">
+            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Cari nama / NIS..."
+              className="w-full pl-8 pr-2.5 py-1.5 text-xs font-medium rounded-lg sm:rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-700 bg-slate-50/50"
+            />
+          </div>
+
+          {/* Jenjang Filter */}
+          <div>
             <select
-              value={activeMonthLimit}
-              onChange={(e) => setActiveMonthLimit(e.target.value)}
-              className="bg-transparent font-bold text-emerald-900 focus:outline-none cursor-pointer"
-              title="Bulan setelahnya akan berstatus 'Akan Berlangsung' dan tidak dihitung tunggakan"
+              value={unitFilter}
+              onChange={(e) => setUnitFilter(e.target.value as any)}
+              className="w-full py-1.5 px-2.5 text-xs font-medium rounded-lg sm:rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-700 bg-white"
             >
+              <option value="ALL">Semua Jenjang</option>
+              <option value="SMP IT">SMP IT</option>
+              <option value="SMA IT">SMA IT</option>
+            </select>
+          </div>
+
+          {/* Kelas Filter */}
+          <div>
+            <select
+              value={gradeFilter}
+              onChange={(e) => setGradeFilter(e.target.value)}
+              className="w-full py-1.5 px-2.5 text-xs font-medium rounded-lg sm:rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-700 bg-white"
+            >
+              <option value="ALL">Semua Kelas</option>
+              <option value="VII">VII</option>
+              <option value="VIII">VIII</option>
+              <option value="IX">IX</option>
+              <option value="X">X</option>
+              <option value="XI">XI</option>
+              <option value="XII">XII</option>
+            </select>
+          </div>
+
+          {/* Kategori Filter */}
+          <div>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="w-full py-1.5 px-2.5 text-xs font-medium rounded-lg sm:rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-700 bg-white"
+            >
+              <option value="ALL">Semua Kategori</option>
+              <option value="Mampu">Mampu</option>
+              <option value="Yatim">Yatim</option>
+              <option value="Dhuafa">Dhuafa</option>
+              <option value="Beasiswa">Beasiswa</option>
+              <option value="Rekomendasi">Rekomendasi</option>
+            </select>
+          </div>
+
+          {/* Status SPP Filter */}
+          <div className="col-span-2 sm:col-span-1">
+            <select
+              value={unpaidMonthFilter}
+              onChange={(e) => setUnpaidMonthFilter(e.target.value)}
+              className={`w-full py-1.5 px-2.5 text-xs font-bold rounded-lg sm:rounded-xl border focus:outline-none focus:ring-2 focus:ring-amber-500 ${
+                unpaidMonthFilter !== 'ALL'
+                  ? 'bg-amber-50 border-amber-300 text-amber-900 ring-1 ring-amber-300'
+                  : 'border-slate-200 bg-white text-slate-700'
+              }`}
+            >
+              <option value="ALL">Semua Status SPP</option>
               {SPP_MONTHS.map((m) => (
                 <option key={m} value={m}>
-                  {m}
+                  ⚠️ Belum Bayar {m}
                 </option>
               ))}
             </select>
           </div>
-
-          <button
-            onClick={loadRecap}
-            disabled={isLoading}
-            className="p-2 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-600 transition"
-            title="Refresh Data"
-          >
-            <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
-          </button>
-
-          <button
-            onClick={() => setShowUnpaidExportModal(true)}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold transition shadow-xs"
-            title="Export Excel Siswa yang belum bayar SPP per bulan tertentu"
-          >
-            <AlertCircle className="w-4 h-4 text-amber-200" />
-            <span>Export Belum Bayar SPP</span>
-          </button>
-
-          <button
-            onClick={handleExport}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-800 hover:bg-emerald-700 text-white text-xs font-bold transition shadow-sm"
-          >
-            <Download className="w-4 h-4 text-gold-400" />
-            <span>Export Matriks Lengkap</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Filter Bar */}
-      <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-        <div className="relative">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Cari nama siswa atau NIS..."
-            className="w-full pl-9 pr-3 py-2 text-xs font-medium rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-700 bg-slate-50/50"
-          />
-        </div>
-
-        <div>
-          <select
-            value={unitFilter}
-            onChange={(e) => setUnitFilter(e.target.value as any)}
-            className="w-full py-2 px-3 text-xs font-medium rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-700 bg-white"
-          >
-            <option value="ALL">Semua Jenjang</option>
-            <option value="SMP IT">SMP IT</option>
-            <option value="SMA IT">SMA IT</option>
-          </select>
-        </div>
-
-        <div>
-          <select
-            value={gradeFilter}
-            onChange={(e) => setGradeFilter(e.target.value)}
-            className="w-full py-2 px-3 text-xs font-medium rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-700 bg-white"
-          >
-            <option value="ALL">Semua Kelas</option>
-            <option value="VII">VII</option>
-            <option value="VIII">VIII</option>
-            <option value="IX">IX</option>
-            <option value="X">X</option>
-            <option value="XI">XI</option>
-            <option value="XII">XII</option>
-          </select>
-        </div>
-
-        <div>
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="w-full py-2 px-3 text-xs font-medium rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-700 bg-white"
-          >
-            <option value="ALL">Semua Kategori</option>
-            <option value="Mampu">Mampu</option>
-            <option value="Yatim">Yatim</option>
-            <option value="Dhuafa">Dhuafa</option>
-            <option value="Beasiswa">Beasiswa</option>
-            <option value="Rekomendasi">Rekomendasi</option>
-          </select>
-        </div>
-
-        <div>
-          <select
-            value={unpaidMonthFilter}
-            onChange={(e) => setUnpaidMonthFilter(e.target.value)}
-            className={`w-full py-2 px-3 text-xs font-bold rounded-xl border focus:outline-none focus:ring-2 focus:ring-amber-500 ${
-              unpaidMonthFilter !== 'ALL'
-                ? 'bg-amber-50 border-amber-300 text-amber-900 ring-1 ring-amber-300'
-                : 'border-slate-200 bg-white text-slate-700'
-            }`}
-          >
-            <option value="ALL">Semua Status SPP</option>
-            {SPP_MONTHS.map((m) => (
-              <option key={m} value={m}>
-                ⚠️ Belum Bayar SPP {m}
-              </option>
-            ))}
-          </select>
         </div>
       </div>
 
       {/* Indicator Banner when filtering by unpaid month */}
       {unpaidMonthFilter !== 'ALL' && (
-        <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-300 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs animate-fade-in">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-xs">
-              <AlertCircle className="w-5 h-5" />
+        <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-300 rounded-xl sm:rounded-2xl p-3 sm:p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 shadow-xs animate-fade-in">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-xs">
+              <AlertCircle className="w-4 h-4" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-xs font-black uppercase tracking-wider text-amber-800 bg-amber-200/70 px-2 py-0.5 rounded-md">
+                <span className="text-[10px] font-black uppercase tracking-wider text-amber-800 bg-amber-200/70 px-1.5 py-0.5 rounded">
                   Filter Aktif
                 </span>
-                <p className="text-sm font-bold text-amber-950">
-                  Daftar Siswa Belum Bayar SPP Bulan {unpaidMonthFilter}
+                <p className="text-xs sm:text-sm font-bold text-amber-950">
+                  Siswa Belum Bayar SPP {unpaidMonthFilter}
                 </p>
               </div>
-              <p className="text-xs text-amber-800 mt-0.5">
-                Ditemukan <strong className="text-amber-950 underline">{filteredRows.length} siswa</strong> belum bayar. Data ini siap diexport ke Excel dengan nama, kelas, jenjang, dan nomor telepon orang tua.
+              <p className="text-[11px] sm:text-xs text-amber-800 mt-0.5">
+                Ditemukan <strong className="text-amber-950 underline">{filteredRows.length} siswa</strong> belum bayar.
               </p>
             </div>
           </div>
           <div className="flex items-center gap-2 w-full sm:w-auto">
             <button
               onClick={() => handleExportUnpaid(unpaidMonthFilter, unitFilter, gradeFilter, true)}
-              className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-amber-700 hover:bg-amber-800 text-white text-xs font-bold rounded-xl shadow-xs transition"
+              className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-1.5 bg-amber-700 hover:bg-amber-800 text-white text-xs font-bold rounded-lg sm:rounded-xl shadow-xs transition"
             >
-              <Download className="w-4 h-4 text-amber-200" />
-              <span>Download Excel Tagihan SPP ({filteredRows.length} Siswa)</span>
+              <Download className="w-3.5 h-3.5 text-amber-200" />
+              <span>Download Excel ({filteredRows.length} Siswa)</span>
             </button>
             <button
               onClick={() => setUnpaidMonthFilter('ALL')}
-              className="px-3 py-2 text-xs font-semibold text-amber-800 hover:bg-amber-200/50 rounded-xl transition"
+              className="px-2.5 py-1.5 text-xs font-semibold text-amber-800 hover:bg-amber-200/50 rounded-lg transition"
             >
-              Reset Filter
+              Reset
             </button>
           </div>
         </div>
       )}
 
-      {/* Legend & Hint */}
-      <div className="flex flex-wrap items-center justify-between gap-4 px-2 text-[11px] font-semibold text-slate-500">
-        <div className="flex flex-wrap items-center gap-4">
-          <span className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded-md bg-emerald-100 border border-emerald-400"></span>
-            <span>Lunas (Tanggal Bayar)</span>
+      {/* Legend & Hint in a Single Compact Horizontal Row */}
+      <div className="flex items-center justify-between gap-3 px-1 text-[10px] sm:text-[11px] font-semibold text-slate-500">
+        <div className="flex items-center gap-3 overflow-x-auto whitespace-nowrap scrollbar-none py-0.5">
+          <span className="flex items-center gap-1.5 shrink-0">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+            <span>Lunas (Tgl Bayar)</span>
           </span>
-          <span className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded-md bg-rose-50 border border-rose-300"></span>
+          <span className="flex items-center gap-1.5 shrink-0">
+            <span className="w-2.5 h-2.5 rounded-full bg-rose-500"></span>
             <span>Belum Bayar (Bulan Berjalan)</span>
           </span>
-          <span className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded-md bg-slate-100 border border-slate-300"></span>
-            <span>Akan Berlangsung (Bulan Belum Aktif - Bukan Tunggakan)</span>
+          <span className="flex items-center gap-1.5 shrink-0">
+            <span className="w-2.5 h-2.5 rounded-full bg-slate-300"></span>
+            <span>Akan Berlangsung</span>
           </span>
-          <span className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded-md bg-purple-100 border border-purple-400"></span>
+          <span className="flex items-center gap-1.5 shrink-0">
+            <span className="w-2.5 h-2.5 rounded-full bg-purple-500"></span>
             <span>Free (Bebas / Yatim)</span>
           </span>
         </div>
 
-        <span className="text-emerald-800 font-bold hidden md:inline">
-          💡 Klik pada kotak mana pun untuk mengubah status atau menginput tanggal
+        <span className="text-emerald-800 font-bold hidden lg:inline shrink-0">
+          💡 Klik sel mana saja untuk edit tanggal atau nominal
         </span>
       </div>
 
-      {/* Main Matrix Table */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-        <div className="overflow-x-auto">
+      {/* Main Matrix Table with Maximized Height & Pinned Headers */}
+      <div className="bg-white rounded-xl sm:rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+        <div className="overflow-x-auto max-h-[calc(100vh-210px)] sm:max-h-[calc(100vh-230px)] overflow-y-auto">
           <table className="w-full text-left border-collapse text-xs whitespace-nowrap">
-            <thead>
+            <thead className="sticky top-0 z-30 shadow-xs">
               <tr className="bg-emerald-950 text-white font-bold uppercase tracking-wider text-[11px]">
-                <th className="py-3 px-3 w-10 text-center sticky left-0 z-20 bg-emerald-950">No</th>
-                <th className="py-3 px-4 sticky left-10 z-20 bg-emerald-950 min-w-[180px]">Nama Siswa</th>
-                <th className="py-3 px-3 text-center">Jenjang</th>
-                <th className="py-3 px-3 text-center">Kelas</th>
-                <th className="py-3 px-3">Status</th>
-                <th className="py-3 px-3 text-right">SPP/Bulan</th>
+                <th className="py-2.5 px-2.5 w-10 text-center sticky left-0 z-40 bg-emerald-950 border-r border-emerald-900">No</th>
+                <th className="py-2.5 px-3.5 sticky left-10 z-40 bg-emerald-950 min-w-[170px] border-r border-emerald-900 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.4)]">Nama Siswa</th>
+                <th className="py-2.5 px-2.5 text-center">Jenjang</th>
+                <th className="py-2.5 px-2.5 text-center">Kelas</th>
+                <th className="py-2.5 px-2.5">Status</th>
+                <th className="py-2.5 px-2.5 text-right">SPP/Bulan</th>
 
                 {/* 12 Months SPP Columns */}
                 {SPP_MONTHS.map((m) => (
-                  <th key={m} className="py-3 px-3 text-center min-w-[95px] bg-emerald-900/80 border-l border-emerald-800">
+                  <th key={m} className="py-2.5 px-2 text-center min-w-[90px] bg-emerald-900/90 border-l border-emerald-800/80">
                     {m}
                   </th>
                 ))}
 
                 {/* Non SPP Categories */}
-                <th className="py-3 px-3 text-right bg-emerald-850/80 border-l border-emerald-800 min-w-[110px]">
+                <th className="py-2.5 px-3 text-right bg-emerald-850/90 border-l border-emerald-800/80 min-w-[105px]">
                   Perlengkapan
                 </th>
-                <th className="py-3 px-3 text-right bg-emerald-850/80 min-w-[110px]">Peralatan</th>
-                <th className="py-3 px-3 text-right bg-emerald-850/80 min-w-[110px]">Kegiatan</th>
-                <th className="py-3 px-3 text-right bg-emerald-850/80 min-w-[110px]">Pembangunan</th>
-                <th className="py-3 px-3 text-right bg-emerald-850/80 min-w-[90px]">Ujian</th>
-                <th className="py-3 px-3 text-right bg-emerald-850/80 min-w-[90px]">Lainnya</th>
+                <th className="py-2.5 px-3 text-right bg-emerald-850/90 min-w-[105px]">Peralatan</th>
+                <th className="py-2.5 px-3 text-right bg-emerald-850/90 min-w-[105px]">Kegiatan</th>
+                <th className="py-2.5 px-3 text-right bg-emerald-850/90 min-w-[105px]">Pembangunan</th>
+                <th className="py-2.5 px-3 text-right bg-emerald-850/90 min-w-[85px]">Ujian</th>
+                <th className="py-2.5 px-3 text-right bg-emerald-850/90 min-w-[85px]">Lainnya</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 font-medium">
@@ -655,20 +665,20 @@ export const PaymentRecapPage: React.FC = () => {
               ) : (
                 filteredRows.map((row, idx) => (
                   <tr key={row.student_id} className="hover:bg-slate-50/80 transition">
-                    <td className="py-2.5 px-3 text-center text-slate-400 font-bold sticky left-0 bg-white">
+                    <td className="py-2 px-2.5 text-center text-slate-400 font-bold sticky left-0 z-10 bg-white border-r border-slate-100">
                       {idx + 1}
                     </td>
-                    <td className="py-2.5 px-4 font-bold text-slate-800 sticky left-10 bg-white">
+                    <td className="py-2 px-3.5 font-bold text-slate-800 sticky left-10 z-10 bg-white border-r border-slate-100 shadow-[2px_0_4px_-1px_rgba(0,0,0,0.06)]">
                       {row.student_name}
                     </td>
-                    <td className="py-2.5 px-3 text-center text-slate-600 font-semibold">{row.unit}</td>
-                    <td className="py-2.5 px-3 text-center text-slate-700 font-semibold">{row.grade}</td>
-                    <td className="py-2.5 px-3">
-                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-700">
+                    <td className="py-2 px-2.5 text-center text-slate-600 font-semibold">{row.unit}</td>
+                    <td className="py-2 px-2.5 text-center text-slate-700 font-semibold">{row.grade}</td>
+                    <td className="py-2 px-2.5">
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 whitespace-nowrap">
                         {row.administrative_status}
                       </span>
                     </td>
-                    <td className="py-2.5 px-3 text-right font-semibold text-slate-800">
+                    <td className="py-2 px-2.5 text-right font-semibold text-slate-800 whitespace-nowrap">
                       Rp{Number(row.spp_nominal).toLocaleString('id-ID')}
                     </td>
 

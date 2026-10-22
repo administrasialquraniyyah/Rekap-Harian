@@ -19,6 +19,15 @@ import { SettingsPage } from './pages/SettingsPage';
 const AppContent: React.FC = () => {
   const [activeTab, setActiveTab] = useState<MenuItemId>('recap-payments'); // default directly to the requested Rekap Pembayaran page!
   const [isOpenMobile, setIsOpenMobile] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+
+  const handleToggleSidebar = () => {
+    if (window.innerWidth < 1024) {
+      setIsOpenMobile((prev) => !prev);
+    } else {
+      setIsSidebarCollapsed((prev) => !prev);
+    }
+  };
 
   const getPageTitle = (tab: MenuItemId) => {
     switch (tab) {
@@ -55,17 +64,20 @@ const AppContent: React.FC = () => {
         setActiveTab={setActiveTab}
         isOpenMobile={isOpenMobile}
         setIsOpenMobile={setIsOpenMobile}
+        isCollapsedDesktop={isSidebarCollapsed}
+        onToggleCollapseDesktop={() => setIsSidebarCollapsed((prev) => !prev)}
       />
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col lg:pl-72 min-w-0">
+      <div className={`flex-1 flex flex-col transition-all duration-300 min-w-0 ${isSidebarCollapsed ? 'lg:pl-0' : 'lg:pl-72'}`}>
         <Header
           title={title}
           subtitle={subtitle}
-          onOpenMobileMenu={() => setIsOpenMobile(true)}
+          onToggleSidebar={handleToggleSidebar}
+          isSidebarCollapsed={isSidebarCollapsed}
         />
 
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto">
+        <main className="flex-1 p-2 sm:p-4 lg:p-6 max-w-[1600px] w-full mx-auto">
           {activeTab === 'dashboard' && <DashboardPage />}
           {activeTab === 'students' && <StudentsPage />}
           {activeTab === 'academic-years' && <AcademicYearsPage />}

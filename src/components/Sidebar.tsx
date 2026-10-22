@@ -32,6 +32,8 @@ interface SidebarProps {
   setActiveTab: (tab: MenuItemId) => void;
   isOpenMobile: boolean;
   setIsOpenMobile: (open: boolean) => void;
+  isCollapsedDesktop?: boolean;
+  onToggleCollapseDesktop?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -39,6 +41,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   setActiveTab,
   isOpenMobile,
   setIsOpenMobile,
+  isCollapsedDesktop = false,
+  onToggleCollapseDesktop,
 }) => {
   const { academicYears, selectedAcademicYearId, setSelectedAcademicYearId } = useApp();
 
@@ -65,12 +69,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
       )}
 
       <aside
-        className={`fixed top-0 bottom-0 left-0 z-50 w-72 bg-emerald-950 text-slate-100 flex flex-col border-r border-emerald-900 shadow-xl transition-transform duration-300 ease-in-out lg:translate-x-0 ${
+        className={`fixed top-0 bottom-0 left-0 z-50 w-72 bg-emerald-950 text-slate-100 flex flex-col border-r border-emerald-900 shadow-xl transition-transform duration-300 ease-in-out ${
           isOpenMobile ? 'translate-x-0' : '-translate-x-full'
+        } ${
+          isCollapsedDesktop ? 'lg:-translate-x-full' : 'lg:translate-x-0'
         }`}
       >
         {/* Brand Header */}
-        <div className="p-5 border-b border-emerald-900/80 flex items-center justify-between">
+        <div className="p-4 sm:p-5 border-b border-emerald-900/80 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <img
               src={logoImg}
@@ -85,8 +91,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </div>
           </div>
           <button
-            onClick={() => setIsOpenMobile(false)}
-            className="lg:hidden text-emerald-300 hover:text-white p-1 rounded-lg"
+            onClick={() => {
+              setIsOpenMobile(false);
+              if (onToggleCollapseDesktop) onToggleCollapseDesktop();
+            }}
+            className="text-emerald-300 hover:text-white p-1 rounded-lg transition"
+            title="Sembunyikan Menu"
           >
             <X className="w-5 h-5" />
           </button>

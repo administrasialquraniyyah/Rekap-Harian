@@ -6,29 +6,34 @@ import { isSupabaseConfigured } from '../lib/supabase';
 interface HeaderProps {
   title: string;
   subtitle?: string;
-  onOpenMobileMenu: () => void;
+  onToggleSidebar: () => void;
+  isSidebarCollapsed?: boolean;
 }
 
-export const Header: React.FC<HeaderProps> = ({ title, subtitle, onOpenMobileMenu }) => {
+export const Header: React.FC<HeaderProps> = ({ title, subtitle, onToggleSidebar, isSidebarCollapsed }) => {
   const { user, signOut } = useAuth();
 
   return (
-    <header className="sticky top-0 z-30 bg-white/90 backdrop-blur-md border-b border-slate-200/80 px-4 sm:px-6 py-3 flex items-center justify-between shadow-xs">
-      <div className="flex items-center gap-3">
+    <header className="sticky top-0 z-30 bg-white/90 backdrop-blur-md border-b border-slate-200/80 px-3 sm:px-6 py-2.5 sm:py-3 flex items-center justify-between shadow-xs">
+      <div className="flex items-center gap-2 sm:gap-3 min-w-0">
         <button
-          onClick={onOpenMobileMenu}
-          className="lg:hidden p-2 rounded-xl text-slate-600 hover:bg-slate-100 transition"
-          aria-label="Buka menu"
+          onClick={onToggleSidebar}
+          className="p-1.5 sm:p-2 rounded-xl text-slate-600 hover:bg-slate-100 hover:text-emerald-900 transition flex items-center gap-1.5 shrink-0"
+          aria-label="Toggle menu"
+          title={isSidebarCollapsed ? "Tampilkan Menu Samping" : "Sembunyikan Menu Samping"}
         >
-          <Menu className="w-5 h-5" />
+          <Menu className="w-5 h-5 text-emerald-900" />
+          <span className="hidden sm:inline text-xs font-bold text-emerald-950">
+            {isSidebarCollapsed ? "Buka Menu" : "Menu"}
+          </span>
         </button>
 
-        <div>
-          <h2 className="text-lg sm:text-xl font-bold text-slate-800 tracking-tight leading-tight">
+        <div className="min-w-0">
+          <h2 className="text-sm sm:text-lg font-bold text-slate-800 tracking-tight leading-tight truncate">
             {title}
           </h2>
           {subtitle && (
-            <p className="text-xs text-slate-500 font-medium hidden sm:block mt-0.5">
+            <p className="text-[11px] sm:text-xs text-slate-500 font-medium hidden sm:block truncate mt-0.5">
               {subtitle}
             </p>
           )}
