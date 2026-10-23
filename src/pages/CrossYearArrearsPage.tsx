@@ -34,6 +34,15 @@ export const CrossYearArrearsPage: React.FC = () => {
   const [gradeFilter, setGradeFilter] = useState<string>('ALL');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'menunggak' | 'lunas'>('menunggak');
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+
+  // Debounce search so typing (e.g. "hilma") doesn't spam Supabase on every keystroke
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search.trim());
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [search]);
 
   // Modal Detail Rincian Tunggakan
   const [selectedStudentArrears, setSelectedStudentArrears] = useState<StudentCrossYearArrears | null>(null);
@@ -45,7 +54,7 @@ export const CrossYearArrearsPage: React.FC = () => {
         academicYearId: academicYearFilter === 'ALL' ? 'ALL' : academicYearFilter,
         unit: unitFilter,
         grade: gradeFilter,
-        search: search.trim() || undefined,
+        search: debouncedSearch || undefined,
       });
 
       setArrearsData(data);
@@ -59,7 +68,7 @@ export const CrossYearArrearsPage: React.FC = () => {
 
   useEffect(() => {
     loadArrears();
-  }, [academicYearFilter, unitFilter, gradeFilter, search, refreshKey]);
+  }, [academicYearFilter, unitFilter, gradeFilter, debouncedSearch, refreshKey]);
 
   // Filter by payment status (Menunggak vs Lunas)
   const filteredData = arrearsData.filter((item) => {
