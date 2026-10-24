@@ -192,6 +192,7 @@ export const localStore = {
       paymentDate?: string;
       amount?: number;
       paymentMethod?: string;
+      notes?: string;
     }
   ) {
     let bill = currentState.bills.find(
@@ -249,7 +250,7 @@ export const localStore = {
         payment_date: data.paymentDate,
         amount: payAmount,
         payment_method: data.paymentMethod || 'Tunai',
-        notes: `Pembayaran SPP ${month} (Edit Langsung)`,
+        notes: data.notes || (payAmount < bill.amount ? `ACC Sebagian SPP ${month} (Cicilan/Dispensasi)` : `Pembayaran SPP ${month} (Edit Langsung)`),
         created_by: 'Petugas Keuangan',
         status: 'valid',
         created_at: new Date().toISOString(),

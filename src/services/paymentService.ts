@@ -262,6 +262,7 @@ export const paymentService = {
       paymentDate?: string;
       amount?: number;
       paymentMethod?: string;
+      notes?: string;
     }
   ): Promise<void> {
     // 1. Sync localStore
@@ -345,7 +346,7 @@ export const paymentService = {
             payment_date: data.paymentDate,
             amount: payAmount,
             payment_method: data.paymentMethod || 'Tunai',
-            notes: `Pembayaran SPP ${month} (Edit Langsung)`,
+            notes: data.notes || (payAmount < billAmount ? `ACC Sebagian SPP ${month} (Cicilan/Dispensasi)` : `Pembayaran SPP ${month} (Edit Langsung)`),
             created_by: 'Petugas Keuangan',
             status: 'valid'
           }])
