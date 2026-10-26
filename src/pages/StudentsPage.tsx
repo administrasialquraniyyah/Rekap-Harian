@@ -316,6 +316,43 @@ export const StudentsPage: React.FC = () => {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            {/* Quick Filter Status Siswa */}
+            <div className="inline-flex rounded-lg p-0.5 bg-slate-100 border border-slate-200 text-xs mr-1">
+              <button
+                type="button"
+                onClick={() => setStudentStatusFilter('aktif')}
+                className={`px-2.5 py-1 rounded-md font-bold text-xs transition ${
+                  studentStatusFilter === 'aktif'
+                    ? 'bg-emerald-800 text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                🟢 Aktif
+              </button>
+              <button
+                type="button"
+                onClick={() => setStudentStatusFilter('nonaktif')}
+                className={`px-2.5 py-1 rounded-md font-bold text-xs transition ${
+                  studentStatusFilter === 'nonaktif'
+                    ? 'bg-rose-700 text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                🔴 Nonaktif
+              </button>
+              <button
+                type="button"
+                onClick={() => setStudentStatusFilter('ALL')}
+                className={`px-2.5 py-1 rounded-md font-bold text-xs transition ${
+                  studentStatusFilter === 'ALL'
+                    ? 'bg-slate-700 text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                Semua
+              </button>
+            </div>
+
             <button
               onClick={handleExportExcel}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg sm:rounded-xl border border-slate-300 text-slate-700 bg-white hover:bg-slate-50 text-xs font-semibold transition"
@@ -335,9 +372,9 @@ export const StudentsPage: React.FC = () => {
         </div>
 
         {/* Search & Compact Responsive Filters */}
-        <div className="pt-2 border-t border-slate-100 grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-2">
+        <div className="pt-2 border-t border-slate-100 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
           {/* Search */}
-          <div className="relative col-span-2 lg:col-span-2">
+          <div className="relative col-span-2">
             <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
             <input
               type="text"
@@ -381,7 +418,7 @@ export const StudentsPage: React.FC = () => {
           </div>
 
           {/* Status Administrasi */}
-          <div className="col-span-2 sm:col-span-1">
+          <div>
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value as any)}
@@ -393,6 +430,21 @@ export const StudentsPage: React.FC = () => {
               <option value="Dhuafa">Dhuafa</option>
               <option value="Beasiswa">Beasiswa</option>
               <option value="Rekomendasi">Rekomendasi</option>
+            </select>
+          </div>
+
+          {/* Status Siswa (Aktif / Nonaktif / Pindah / Lulus) */}
+          <div>
+            <select
+              value={studentStatusFilter}
+              onChange={(e) => setStudentStatusFilter(e.target.value as any)}
+              className="w-full py-1.5 px-2.5 text-xs font-semibold rounded-lg sm:rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-700 bg-white"
+            >
+              <option value="aktif">🟢 Siswa Aktif</option>
+              <option value="nonaktif">🔴 Siswa Nonaktif</option>
+              <option value="pindah">🟠 Siswa Pindah</option>
+              <option value="lulus">🎓 Siswa Lulus</option>
+              <option value="ALL">Semua Status</option>
             </select>
           </div>
         </div>

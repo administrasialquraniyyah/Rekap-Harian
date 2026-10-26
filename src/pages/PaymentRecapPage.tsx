@@ -56,6 +56,7 @@ interface RecapRow {
   paid_ujian: number;
   paid_lainnya: number;
   phone: string | null;
+  student_status: string;
 }
 
 export const PaymentRecapPage: React.FC = () => {
@@ -72,6 +73,7 @@ export const PaymentRecapPage: React.FC = () => {
   const [unitFilter, setUnitFilter] = useState<'ALL' | 'SMP IT' | 'SMA IT'>('ALL');
   const [gradeFilter, setGradeFilter] = useState<string>('ALL');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
+  const [studentStatusFilter, setStudentStatusFilter] = useState<'ALL' | 'aktif' | 'nonaktif'>('aktif');
   const [unpaidMonthFilter, setUnpaidMonthFilter] = useState<string>('ALL');
 
   // Freeze / Unfreeze student name column for mobile full-width scrolling
@@ -211,6 +213,7 @@ export const PaymentRecapPage: React.FC = () => {
           paid_ujian: getPaidForCat('Ujian'),
           paid_lainnya: getPaidForCat('Lainnya'),
           phone: s.phone || null,
+          student_status: s.student_status || 'aktif',
         };
       });
 
@@ -328,6 +331,7 @@ export const PaymentRecapPage: React.FC = () => {
     const matchesUnit = unitFilter === 'ALL' || row.unit === unitFilter;
     const matchesGrade = gradeFilter === 'ALL' || row.grade === gradeFilter;
     const matchesStatus = statusFilter === 'ALL' || row.administrative_status === statusFilter;
+    const matchesStudentStatus = studentStatusFilter === 'ALL' || row.student_status === studentStatusFilter;
 
     // Filter by unpaid SPP month
     let matchesUnpaidMonth = true;
@@ -336,7 +340,7 @@ export const PaymentRecapPage: React.FC = () => {
       matchesUnpaidMonth = cell?.status === 'Belum Dibayar' || cell?.status === 'Belum Lunas';
     }
 
-    return matchesSearch && matchesUnit && matchesGrade && matchesStatus && matchesUnpaidMonth;
+    return matchesSearch && matchesUnit && matchesGrade && matchesStatus && matchesStudentStatus && matchesUnpaidMonth;
   });
 
   const handleExportUnpaid = (
@@ -352,6 +356,9 @@ export const PaymentRecapPage: React.FC = () => {
 
     const listWithUnpaidDetails = recapData
       .map((r) => {
+        // Jangan sertakan siswa yang sudah nonaktif pada penagihan aktif
+        if (r.student_status && r.student_status !== 'aktif') return null;
+
         const mUnit = targetUnit === 'ALL' || r.unit === targetUnit;
         const mGrade = targetGrade === 'ALL' || r.grade === targetGrade;
         if (!mUnit || !mGrade) return null;
@@ -517,7 +524,7 @@ export const PaymentRecapPage: React.FC = () => {
         </div>
 
         {/* Row 2: Compact Responsive Filters (Desktop Toolbar Style) */}
-        <div className="pt-2 border-t border-slate-100 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-1.5 sm:gap-2">
+        <div className="pt-2 border-t border-slate-100 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-1.5 sm:gap-2">
           {/* Search Input - Always visible */}
           <div className="relative col-span-2 sm:col-span-1">
             <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
@@ -573,6 +580,19 @@ export const PaymentRecapPage: React.FC = () => {
               <option value="Dhuafa">Dhuafa</option>
               <option value="Beasiswa">Beasiswa</option>
               <option value="Rekomendasi">Rekomendasi</option>
+            </select>
+          </div>
+
+          {/* Status Siswa Filter */}
+          <div className={`${showFilters ? 'block' : 'hidden sm:block'}`}>
+            <select
+              value={studentStatusFilter}
+              onChange={(e) => setStudentStatusFilter(e.target.value as any)}
+              className="w-full py-1.5 px-2.5 text-xs font-semibold rounded-lg sm:rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-700 bg-white"
+            >
+              <option value="aktif">🟢 Siswa Aktif</option>
+              <option value="nonaktif">🔴 Siswa Nonaktif</option>
+              <option value="ALL">Semua Status</option>
             </select>
           </div>
 
@@ -773,7 +793,19 @@ export const PaymentRecapPage: React.FC = () => {
                       }`}
                       title={row.student_name}
                     >
-                      {row.student_name}
+                      <div className="flex items-center gap-1.5">
+                        <span className="truncate">{row.student_name}</span>
+                        {row.student_status === 'nonaktif' && (
+                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-rose-100 text-rose-700 border border-rose-200 shrink-0">
+                            Nonaktif
+                          </span>
+                        )}
+                        {row.student_status === 'pindah' && (
+                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-200 shrink-0">
+                            Pindah
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="py-2 px-2.5 text-center text-slate-600 font-semibold">{row.unit}</td>
                     <td className="py-2 px-2.5 text-center text-slate-700 font-semibold">{row.grade}</td>
