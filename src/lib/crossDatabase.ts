@@ -13,7 +13,7 @@ export const supabaseSDIT = isCrossDbConfigured
     })
   : null;
 
-export const SDIT_PORTAL_URL = import.meta.env.VITE_SDIT_PORTAL_URL || 'https://sd-it-al-qur-aniyyah.vercel.app';
+export const SDIT_PORTAL_URL = import.meta.env.VITE_SDIT_PORTAL_URL || 'https://rekap-sdit.vercel.app';
 
 export interface SDITGraduateStudent {
   id: string;
