@@ -1,7 +1,8 @@
 import React from 'react';
-import { Menu, Database, ShieldCheck, LogOut, User as UserIcon, Monitor, Smartphone } from 'lucide-react';
+import { Menu, Database, ShieldCheck, LogOut, User as UserIcon, Monitor, Smartphone, ExternalLink } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { isSupabaseConfigured } from '../lib/supabase';
+import { SDIT_PORTAL_URL } from '../lib/crossDatabase';
 
 interface HeaderProps {
   title: string;
@@ -94,6 +95,18 @@ export const Header: React.FC<HeaderProps> = ({
             }`}
           />
         </div>
+
+        {/* Switcher ke Portal TK & SD IT */}
+        <a
+          href={SDIT_PORTAL_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-bold transition border border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-100 shadow-2xs"
+          title="Buka Aplikasi Keuangan Unit TK & SD IT Al-Qur'aniyyah"
+        >
+          <ExternalLink className="w-3.5 h-3.5 text-amber-700" />
+          <span className="text-[11px] whitespace-nowrap">Portal TK &amp; SD IT</span>
+        </a>
 
         {/* User Info & Logout */}
         <div className="flex items-center gap-2 pl-2 border-l border-slate-200">

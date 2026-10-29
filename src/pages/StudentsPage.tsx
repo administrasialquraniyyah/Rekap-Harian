@@ -14,12 +14,14 @@ import {
   FileSpreadsheet,
   Download,
   AlertCircle,
-  UserX
+  UserX,
+  GraduationCap
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { studentService, StudentFilter } from '../services/studentService';
 import { Student, UnitType, AdministrativeStatus, StudentStatus, Gender } from '../types/database';
 import { billingService } from '../services/billingService';
+import { fetchSDITGraduates, copySDITStudentsToSMP, SDITGraduateStudent } from '../lib/crossDatabase';
 import * as XLSX from 'xlsx';
 
 export const StudentsPage: React.FC = () => {
@@ -62,6 +64,55 @@ export const StudentsPage: React.FC = () => {
   const [detailStudent, setDetailStudent] = useState<Student | null>(null);
   const [detailBills, setDetailBills] = useState<any[]>([]);
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
+
+  // Cross-Database: Tarik Alumni SD IT
+  const [showImportSDITModal, setShowImportSDITModal] = useState(false);
+  const [sditGraduates, setSditGraduates] = useState<SDITGraduateStudent[]>([]);
+  const [selectedSditIds, setSelectedSditIds] = useState<string[]>([]);
+  const [isLoadingSDIT, setIsLoadingSDIT] = useState(false);
+  const [isCopyingSDIT, setIsCopyingSDIT] = useState(false);
+
+  const handleOpenImportSDIT = async () => {
+    setShowImportSDITModal(true);
+    setIsLoadingSDIT(true);
+    try {
+      const data = await fetchSDITGraduates();
+      setSditGraduates(data);
+      setSelectedSditIds(data.map((d) => d.id));
+    } catch (err: any) {
+      showToast('Gagal mengambil data alumni SD IT: ' + (err?.message || err), 'error');
+    } finally {
+      setIsLoadingSDIT(false);
+    }
+  };
+
+  const handleExecuteCopySDIT = async () => {
+    if (selectedSditIds.length === 0) {
+      showToast('Pilih setidaknya 1 santri untuk disalin', 'error');
+      return;
+    }
+    if (!selectedAcademicYearId) {
+      showToast('Tahun ajaran aktif belum dipilih', 'error');
+      return;
+    }
+
+    setIsCopyingSDIT(true);
+    try {
+      const toCopy = sditGraduates.filter((g) => selectedSditIds.includes(g.id));
+      const res = await copySDITStudentsToSMP(toCopy, selectedAcademicYearId);
+      if (res.successCount > 0) {
+        showToast(`Berhasil menyalin ${res.successCount} santri lulusan SD IT ke Kelas VII SMP IT!`, 'success');
+        setShowImportSDITModal(false);
+        loadStudents();
+      } else {
+        showToast('Tidak ada santri yang berhasil disalin. ' + res.errors.join(', '), 'error');
+      }
+    } catch (err: any) {
+      showToast('Gagal menyalin santri: ' + (err?.message || err), 'error');
+    } finally {
+      setIsCopyingSDIT(false);
+    }
+  };
 
   const loadStudents = async () => {
     setIsLoading(true);
@@ -359,6 +410,15 @@ export const StudentsPage: React.FC = () => {
             >
               <Download className="w-3.5 h-3.5 text-emerald-600" />
               <span>Export Excel</span>
+            </button>
+
+            <button
+              onClick={handleOpenImportSDIT}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg sm:rounded-xl border border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-900 text-xs font-bold transition shadow-xs"
+              title="Tarik data santri lulusan SD IT Al-Qur'aniyyah dari database SD IT ke SMP IT"
+            >
+              <GraduationCap className="w-3.5 h-3.5 text-amber-700" />
+              <span>Tarik Alumni SD IT</span>
             </button>
 
             <button
@@ -1014,6 +1074,145 @@ export const StudentsPage: React.FC = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Tarik Alumni SD IT (Lintas Database Supabase) */}
+      {showImportSDITModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-amber-100 text-amber-900 flex items-center justify-center">
+                  <GraduationCap className="w-5 h-5 text-amber-700" />
+                </div>
+                <div>
+                  <h4 className="text-base font-bold text-slate-800">
+                    Tarik Alumni SD IT ke SMP IT (Kelas VII)
+                  </h4>
+                  <p className="text-xs text-slate-500">
+                    Membaca langsung dari Database Supabase SD IT Al-Qur'aniyyah
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowImportSDITModal(false)}
+                className="text-slate-400 hover:text-slate-600 transition p-1"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {isLoadingSDIT ? (
+              <div className="py-12 text-center text-xs text-slate-500 space-y-2">
+                <div className="w-6 h-6 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin mx-auto" />
+                <p>Menghubungkan ke Database SD IT &amp; mengambil daftar santri...</p>
+              </div>
+            ) : sditGraduates.length === 0 ? (
+              <div className="py-8 text-center text-xs text-slate-500 bg-slate-50 rounded-xl p-4 border border-dashed border-slate-200">
+                <p className="font-semibold text-slate-700">Belum ada data siswa lulusan di database SD IT.</p>
+                <p className="text-[11px] text-slate-400 mt-1">
+                  Pastikan di aplikasi SD IT sudah ada siswa Kelas VI atau yang berstatus lulus.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between text-xs text-slate-600">
+                  <p className="font-semibold">
+                    Ditemukan <span className="text-emerald-800 font-bold">{sditGraduates.length} santri</span> di database SD IT:
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (selectedSditIds.length === sditGraduates.length) {
+                        setSelectedSditIds([]);
+                      } else {
+                        setSelectedSditIds(sditGraduates.map((s) => s.id));
+                      }
+                    }}
+                    className="text-emerald-800 hover:underline font-bold"
+                  >
+                    {selectedSditIds.length === sditGraduates.length ? 'Batal Pilih Semua' : 'Pilih Semua'}
+                  </button>
+                </div>
+
+                <div className="max-h-72 overflow-y-auto border border-slate-200 rounded-xl divide-y divide-slate-100">
+                  {sditGraduates.map((g) => {
+                    const isSelected = selectedSditIds.includes(g.id);
+                    return (
+                      <label
+                        key={g.id}
+                        className={`flex items-center justify-between p-3 cursor-pointer text-xs transition ${
+                          isSelected ? 'bg-amber-50/50' : 'hover:bg-slate-50'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedSditIds([...selectedSditIds, g.id]);
+                              } else {
+                                setSelectedSditIds(selectedSditIds.filter((id) => id !== g.id));
+                              }
+                            }}
+                            className="w-4 h-4 text-emerald-800 rounded focus:ring-emerald-700"
+                          />
+                          <div>
+                            <p className="font-bold text-slate-800">{g.full_name}</p>
+                            <p className="text-[11px] text-slate-500">
+                              NIS: {g.nis || '-'} · {g.gender} · {g.phone ? `HP: ${g.phone}` : 'Tanpa No. HP'}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="text-right">
+                          <span className="inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                            {g.unit} - Kelas {g.grade}
+                          </span>
+                          <span className="block text-[10px] text-slate-400 mt-0.5">
+                            Status: {g.student_status}
+                          </span>
+                        </div>
+                      </label>
+                    );
+                  })}
+                </div>
+
+                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-[11px] text-emerald-900 space-y-1">
+                  <p className="font-bold">Informasi Pendaftaran Otomatis:</p>
+                  <p>
+                    Santri yang dipilih akan dimasukkan ke <strong>Kelas VII SMP IT Al-Qur'aniyyah</strong> pada Tahun Ajaran Aktif ({selectedAcademicYear?.name || '2026/2027'}).
+                  </p>
+                </div>
+              </div>
+            )}
+
+            <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100 mt-4">
+              <button
+                type="button"
+                onClick={() => setShowImportSDITModal(false)}
+                disabled={isCopyingSDIT}
+                className="px-4 py-2 border border-slate-200 text-slate-600 text-xs font-semibold rounded-xl hover:bg-slate-50 transition"
+              >
+                Tutup
+              </button>
+              {sditGraduates.length > 0 && (
+                <button
+                  type="button"
+                  onClick={handleExecuteCopySDIT}
+                  disabled={isCopyingSDIT || selectedSditIds.length === 0}
+                  className="px-5 py-2 bg-emerald-800 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-xs transition disabled:opacity-50 flex items-center gap-1.5"
+                >
+                  <GraduationCap className="w-4 h-4" />
+                  <span>
+                    {isCopyingSDIT ? 'Menyalin...' : `Salin ${selectedSditIds.length} Santri ke SMP IT`}
+                  </span>
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}

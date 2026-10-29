@@ -9,18 +9,44 @@ import {
   Receipt,
   Users,
   AlertCircle,
-  CheckCircle2
+  CheckCircle2,
+  Building2,
+  RefreshCw
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { SPP_MONTHS } from '../services/billingService';
 import { localStore } from '../services/dataStore';
 import * as XLSX from 'xlsx';
+import { getFoundationConsolidatedSummary, FoundationUnitFinancialSummary } from '../lib/crossDatabase';
 
 export const FinancialReportPage: React.FC = () => {
   const { selectedAcademicYearId, selectedAcademicYear, showToast, refreshKey } = useApp();
 
-  const [activeReportTab, setActiveReportTab] = useState<'monthly' | 'categories' | 'units'>('monthly');
+  const [activeReportTab, setActiveReportTab] = useState<'monthly' | 'categories' | 'units' | 'foundation'>('monthly');
+  const [foundationData, setFoundationData] = useState<{
+    units: FoundationUnitFinancialSummary[];
+    grandTotal: {
+      students: number;
+      bills: number;
+      paid: number;
+      arrears: number;
+      collectionRate: number;
+    };
+  } | null>(null);
+  const [isLoadingFoundation, setIsLoadingFoundation] = useState(false);
+
+  const loadFoundationData = async () => {
+    setIsLoadingFoundation(true);
+    try {
+      const res = await getFoundationConsolidatedSummary();
+      setFoundationData(res);
+    } catch (e: any) {
+      console.error('Error loading foundation summary:', e);
+    } finally {
+      setIsLoadingFoundation(false);
+    }
+  };
   const [isLoading, setIsLoading] = useState(true);
 
   // Monthly income report
@@ -270,7 +296,31 @@ export const FinancialReportPage: React.FC = () => {
         'PERSENTASE (%)': c.percentage.toFixed(2) + '%',
       }));
     } else {
-      filename += '_Per_Jenjang';
+      if (activeReportTab === 'foundation') {
+        filename += '_Konsolidasi_Yayasan_4_Unit';
+        rows = (foundationData?.units || []).map((u, idx) => ({
+          'NO': idx + 1,
+          'UNIT': u.unit,
+          'JUMLAH SISWA': u.totalStudents,
+          'TOTAL TAGIHAN (Rp)': u.totalBills,
+          'TOTAL PEMASUKAN (Rp)': u.totalPaid,
+          'TOTAL TUNGGAKAN (Rp)': u.totalArrears,
+          'KOLEKTIBILITAS (%)': u.collectionRate.toFixed(2) + '%',
+        }));
+        if (foundationData?.grandTotal) {
+          rows.push({
+            'NO': '',
+            'UNIT': 'GRAND TOTAL YAYASAN',
+            'JUMLAH SISWA': foundationData.grandTotal.students,
+            'TOTAL TAGIHAN (Rp)': foundationData.grandTotal.bills,
+            'TOTAL PEMASUKAN (Rp)': foundationData.grandTotal.paid,
+            'TOTAL TUNGGAKAN (Rp)': foundationData.grandTotal.arrears,
+            'KOLEKTIBILITAS (%)': foundationData.grandTotal.collectionRate.toFixed(2) + '%',
+          });
+        }
+      } else {
+        filename += '_Per_Jenjang';
+      }
       rows = unitData.map((u, idx) => ({
         'NO': idx + 1,
         'JENJANG': u.unit,
@@ -339,6 +389,20 @@ export const FinancialReportPage: React.FC = () => {
           }`}
         >
           Rekapitulasi Unit SMP IT &amp; SMA IT
+        </button>
+        <button
+          onClick={() => {
+            setActiveReportTab('foundation');
+            if (!foundationData) loadFoundationData();
+          }}
+          className={`py-2 px-3 font-bold text-xs rounded-lg transition shrink-0 flex items-center gap-1.5 ${
+            activeReportTab === 'foundation'
+              ? 'bg-amber-700 text-white shadow-2xs'
+              : 'text-amber-800 bg-amber-50/80 hover:bg-amber-100 border border-amber-300'
+          }`}
+        >
+          <Building2 className="w-3.5 h-3.5" />
+          <span>🏛️ Konsolidasi Yayasan (TK, SD, SMP, SMA)</span>
         </button>
       </div>
 
