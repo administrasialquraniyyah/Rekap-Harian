@@ -27,6 +27,7 @@ import { studentService } from '../services/studentService';
 import { billingService, SPP_MONTHS } from '../services/billingService';
 import { paymentService } from '../services/paymentService';
 import { excelService } from '../services/excelService';
+import * as XLSX from 'xlsx';
 import { localStore } from '../services/dataStore';
 import { Student, Bill, UnitType, BillStatus } from '../types/database';
 
@@ -38,6 +39,15 @@ interface SppCellData {
   remaining?: number;
   billId?: string;
   amount?: number;
+}
+
+export interface NonSppDetail {
+  bill_id?: string;
+  category_name: string;
+  bill_amount: number;
+  paid_amount: number;
+  remaining_amount: number;
+  status: 'Lunas' | 'Belum Lunas' | 'Belum Dibayar' | 'Bebas' | 'Tidak Ada Tagihan';
 }
 
 interface RecapRow {
@@ -55,6 +65,12 @@ interface RecapRow {
   paid_pembangunan: number;
   paid_ujian: number;
   paid_lainnya: number;
+  kegiatan_detail: NonSppDetail;
+  peralatan_detail: NonSppDetail;
+  perlengkapan_detail: NonSppDetail;
+  pembangunan_detail: NonSppDetail;
+  ujian_detail: NonSppDetail;
+  lainnya_detail: NonSppDetail;
   phone: string | null;
   student_status: string;
 }
@@ -75,6 +91,7 @@ export const PaymentRecapPage: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [studentStatusFilter, setStudentStatusFilter] = useState<'ALL' | 'aktif' | 'nonaktif'>('aktif');
   const [unpaidMonthFilter, setUnpaidMonthFilter] = useState<string>('ALL');
+  const [nonSppArrearsFilter, setNonSppArrearsFilter] = useState<string>('ALL');
 
   // Freeze / Unfreeze student name column for mobile full-width scrolling
   const [isNameFrozen, setIsNameFrozen] = useState<boolean>(false);
@@ -106,6 +123,8 @@ export const PaymentRecapPage: React.FC = () => {
     student_name: string;
     category_name: string;
     current_paid: number;
+    total_bill: number;
+    remaining: number;
     input_amount: string;
     payment_date: string;
   } | null>(null);
@@ -192,10 +211,64 @@ export const PaymentRecapPage: React.FC = () => {
           }
         });
 
-        const getPaidForCat = (catPattern: string) => {
-          const matchBills = sBills.filter((b) => b.category?.name.toLowerCase().includes(catPattern.toLowerCase()));
-          return matchBills.reduce((sum, b) => sum + Number(b.total_paid || 0), 0);
+        const getNonSppDetail = (categoryPatterns: string[], defaultLabel: string): NonSppDetail => {
+          const matchBills = sBills.filter((b) => {
+            const cName = (b.category?.name || '').toLowerCase();
+            return categoryPatterns.some((pat) => cName.includes(pat.toLowerCase()));
+          });
+
+          if (matchBills.length === 0) {
+            return {
+              category_name: defaultLabel,
+              bill_amount: 0,
+              paid_amount: 0,
+              remaining_amount: 0,
+              status: 'Tidak Ada Tagihan',
+            };
+          }
+
+          const primaryBill = matchBills[0];
+          const billAmount = matchBills.reduce((sum, b) => sum + Number(b.amount || 0), 0);
+          const paidAmount = matchBills.reduce((sum, b) => sum + Number(b.total_paid || 0), 0);
+          const isFree = matchBills.every((b) => b.calculated_status === 'Bebas' || b.status === 'Bebas');
+
+          if (isFree) {
+            return {
+              bill_id: primaryBill.id,
+              category_name: primaryBill.category?.name || defaultLabel,
+              bill_amount: billAmount,
+              paid_amount: paidAmount,
+              remaining_amount: 0,
+              status: 'Bebas',
+            };
+          }
+
+          const remaining = Math.max(0, billAmount - paidAmount);
+          let status: NonSppDetail['status'] = 'Belum Dibayar';
+          if (remaining === 0 && billAmount > 0) {
+            status = 'Lunas';
+          } else if (paidAmount > 0 && remaining > 0) {
+            status = 'Belum Lunas';
+          } else if (billAmount === 0) {
+            status = 'Tidak Ada Tagihan';
+          }
+
+          return {
+            bill_id: primaryBill.id,
+            category_name: primaryBill.category?.name || defaultLabel,
+            bill_amount: billAmount,
+            paid_amount: paidAmount,
+            remaining_amount: remaining,
+            status,
+          };
         };
+
+        const kegiatanDetail = getNonSppDetail(['kegiatan'], 'Kegiatan');
+        const peralatanDetail = getNonSppDetail(['peralatan'], 'Peralatan');
+        const perlengkapanDetail = getNonSppDetail(['perlengkapan', 'buku'], 'Buku Paket / Perlengkapan');
+        const pembangunanDetail = getNonSppDetail(['pembangunan', 'gedung'], 'Pembangunan');
+        const ujianDetail = getNonSppDetail(['ujian'], 'Ujian');
+        const lainnyaDetail = getNonSppDetail(['lainnya'], 'Lainnya');
 
         return {
           student_id: s.id,
@@ -206,12 +279,18 @@ export const PaymentRecapPage: React.FC = () => {
           administrative_status: enr?.administrative_status || 'Mampu',
           spp_nominal: sppNominal,
           sppMonths: sppMonthsMap,
-          paid_perlengkapan: getPaidForCat('Perlengkapan'),
-          paid_peralatan: getPaidForCat('Peralatan'),
-          paid_kegiatan: getPaidForCat('Kegiatan'),
-          paid_pembangunan: getPaidForCat('Pembangunan'),
-          paid_ujian: getPaidForCat('Ujian'),
-          paid_lainnya: getPaidForCat('Lainnya'),
+          paid_perlengkapan: perlengkapanDetail.paid_amount,
+          paid_peralatan: peralatanDetail.paid_amount,
+          paid_kegiatan: kegiatanDetail.paid_amount,
+          paid_pembangunan: pembangunanDetail.paid_amount,
+          paid_ujian: ujianDetail.paid_amount,
+          paid_lainnya: lainnyaDetail.paid_amount,
+          kegiatan_detail: kegiatanDetail,
+          peralatan_detail: peralatanDetail,
+          perlengkapan_detail: perlengkapanDetail,
+          pembangunan_detail: pembangunanDetail,
+          ujian_detail: ujianDetail,
+          lainnya_detail: lainnyaDetail,
           phone: s.phone || null,
           student_status: s.student_status || 'aktif',
         };
@@ -284,14 +363,16 @@ export const PaymentRecapPage: React.FC = () => {
   };
 
   // Handle cell click on Non-SPP (Perlengkapan, Peralatan, Kegiatan, etc.)
-  const handleCellClickNonSpp = (row: RecapRow, categoryName: string, currentVal: number) => {
+  const handleCellClickNonSpp = (row: RecapRow, categoryName: string, detail: NonSppDetail) => {
     const todayStr = new Date().toISOString().split('T')[0];
     setEditingNonSpp({
       student_id: row.student_id,
       student_name: row.student_name,
       category_name: categoryName,
-      current_paid: currentVal,
-      input_amount: String(currentVal || ''),
+      current_paid: detail.paid_amount,
+      total_bill: detail.bill_amount,
+      remaining: detail.remaining_amount,
+      input_amount: String(detail.paid_amount || ''),
       payment_date: todayStr,
     });
   };
@@ -340,8 +421,136 @@ export const PaymentRecapPage: React.FC = () => {
       matchesUnpaidMonth = cell?.status === 'Belum Dibayar' || cell?.status === 'Belum Lunas';
     }
 
-    return matchesSearch && matchesUnit && matchesGrade && matchesStatus && matchesStudentStatus && matchesUnpaidMonth;
+    // Filter by Non-SPP Arrears (kegiatan, peralatan, buku paket / perlengkapan, pembangunan, dll)
+    let matchesNonSppArrears = true;
+    if (nonSppArrearsFilter === 'kegiatan') {
+      matchesNonSppArrears = row.kegiatan_detail.status === 'Belum Dibayar' || row.kegiatan_detail.status === 'Belum Lunas';
+    } else if (nonSppArrearsFilter === 'peralatan') {
+      matchesNonSppArrears = row.peralatan_detail.status === 'Belum Dibayar' || row.peralatan_detail.status === 'Belum Lunas';
+    } else if (nonSppArrearsFilter === 'perlengkapan' || nonSppArrearsFilter === 'buku') {
+      matchesNonSppArrears = row.perlengkapan_detail.status === 'Belum Dibayar' || row.perlengkapan_detail.status === 'Belum Lunas';
+    } else if (nonSppArrearsFilter === 'pembangunan') {
+      matchesNonSppArrears = row.pembangunan_detail.status === 'Belum Dibayar' || row.pembangunan_detail.status === 'Belum Lunas';
+    } else if (nonSppArrearsFilter === 'ujian') {
+      matchesNonSppArrears = row.ujian_detail.status === 'Belum Dibayar' || row.ujian_detail.status === 'Belum Lunas';
+    } else if (nonSppArrearsFilter === 'any_nonspp') {
+      matchesNonSppArrears =
+        row.kegiatan_detail.remaining_amount > 0 ||
+        row.peralatan_detail.remaining_amount > 0 ||
+        row.perlengkapan_detail.remaining_amount > 0 ||
+        row.pembangunan_detail.remaining_amount > 0 ||
+        row.ujian_detail.remaining_amount > 0;
+    } else if (nonSppArrearsFilter === 'all_lunas') {
+      matchesNonSppArrears =
+        row.kegiatan_detail.remaining_amount === 0 &&
+        row.peralatan_detail.remaining_amount === 0 &&
+        row.perlengkapan_detail.remaining_amount === 0 &&
+        row.pembangunan_detail.remaining_amount === 0 &&
+        row.ujian_detail.remaining_amount === 0 &&
+        (row.kegiatan_detail.bill_amount > 0 || row.peralatan_detail.bill_amount > 0 || row.perlengkapan_detail.bill_amount > 0 || row.pembangunan_detail.bill_amount > 0);
+    }
+
+    return matchesSearch && matchesUnit && matchesGrade && matchesStatus && matchesStudentStatus && matchesUnpaidMonth && matchesNonSppArrears;
   });
+
+  const getNonSppFilterTitle = (filter: string) => {
+    switch (filter) {
+      case 'kegiatan':
+        return 'Kegiatan';
+      case 'peralatan':
+        return 'Peralatan';
+      case 'perlengkapan':
+      case 'buku':
+        return 'Buku Paket / Perlengkapan';
+      case 'pembangunan':
+        return 'Pembangunan';
+      case 'ujian':
+        return 'Ujian';
+      case 'any_nonspp':
+        return 'Biaya Non-SPP (Ada Tunggakan)';
+      case 'all_lunas':
+        return 'Lunas Semua Biaya Non-SPP';
+      default:
+        return '';
+    }
+  };
+
+  const totalNonSppArrearsFiltered = filteredRows.reduce((sum, r) => {
+    if (nonSppArrearsFilter === 'kegiatan') return sum + r.kegiatan_detail.remaining_amount;
+    if (nonSppArrearsFilter === 'peralatan') return sum + r.peralatan_detail.remaining_amount;
+    if (nonSppArrearsFilter === 'perlengkapan' || nonSppArrearsFilter === 'buku') return sum + r.perlengkapan_detail.remaining_amount;
+    if (nonSppArrearsFilter === 'pembangunan') return sum + r.pembangunan_detail.remaining_amount;
+    if (nonSppArrearsFilter === 'ujian') return sum + r.ujian_detail.remaining_amount;
+    return sum + r.kegiatan_detail.remaining_amount + r.peralatan_detail.remaining_amount + r.perlengkapan_detail.remaining_amount + r.pembangunan_detail.remaining_amount + r.ujian_detail.remaining_amount;
+  }, 0);
+
+  const handleExportNonSppArrears = (filterType: string) => {
+    if (filteredRows.length === 0) {
+      showToast('Tidak ada data siswa untuk diexport', 'error');
+      return;
+    }
+
+    const label = getNonSppFilterTitle(filterType);
+    const exportData = filteredRows.map((r, idx) => {
+      let tagihan = 0;
+      let terbayar = 0;
+      let sisa = 0;
+      let status = '';
+
+      if (filterType === 'kegiatan') {
+        tagihan = r.kegiatan_detail.bill_amount;
+        terbayar = r.kegiatan_detail.paid_amount;
+        sisa = r.kegiatan_detail.remaining_amount;
+        status = r.kegiatan_detail.status;
+      } else if (filterType === 'peralatan') {
+        tagihan = r.peralatan_detail.bill_amount;
+        terbayar = r.peralatan_detail.paid_amount;
+        sisa = r.peralatan_detail.remaining_amount;
+        status = r.peralatan_detail.status;
+      } else if (filterType === 'perlengkapan' || filterType === 'buku') {
+        tagihan = r.perlengkapan_detail.bill_amount;
+        terbayar = r.perlengkapan_detail.paid_amount;
+        sisa = r.perlengkapan_detail.remaining_amount;
+        status = r.perlengkapan_detail.status;
+      } else if (filterType === 'pembangunan') {
+        tagihan = r.pembangunan_detail.bill_amount;
+        terbayar = r.pembangunan_detail.paid_amount;
+        sisa = r.pembangunan_detail.remaining_amount;
+        status = r.pembangunan_detail.status;
+      } else if (filterType === 'ujian') {
+        tagihan = r.ujian_detail.bill_amount;
+        terbayar = r.ujian_detail.paid_amount;
+        sisa = r.ujian_detail.remaining_amount;
+        status = r.ujian_detail.status;
+      } else {
+        tagihan = r.kegiatan_detail.bill_amount + r.peralatan_detail.bill_amount + r.perlengkapan_detail.bill_amount + r.pembangunan_detail.bill_amount + r.ujian_detail.bill_amount;
+        terbayar = r.kegiatan_detail.paid_amount + r.peralatan_detail.paid_amount + r.perlengkapan_detail.paid_amount + r.pembangunan_detail.paid_amount + r.ujian_detail.paid_amount;
+        sisa = r.kegiatan_detail.remaining_amount + r.peralatan_detail.remaining_amount + r.perlengkapan_detail.remaining_amount + r.pembangunan_detail.remaining_amount + r.ujian_detail.remaining_amount;
+        status = sisa > 0 ? (terbayar > 0 ? 'Belum Lunas' : 'Belum Dibayar') : 'Lunas';
+      }
+
+      return {
+        'NO': idx + 1,
+        'NAMA SISWA': r.student_name,
+        'NIS': r.nis || '-',
+        'JENJANG': r.unit,
+        'KELAS': r.grade,
+        'STATUS ADMINISTRASI': r.administrative_status,
+        'NO. WHATSAPP WALI': r.phone || '-',
+        'KATEGORI TAGIHAN': label,
+        'TOTAL KEWAJIBAN (Rp)': tagihan,
+        'SUDAH DIBAYAR (Rp)': terbayar,
+        'SISA TUNGGAKAN (Rp)': sisa,
+        'STATUS': status,
+      };
+    });
+
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Tunggakan');
+    XLSX.writeFile(wb, `Tunggakan_${label.replace(/[^a-zA-Z0-9]/g, '_')}_${selectedAcademicYear?.name?.replace('/', '-') || '2026-2027'}.xlsx`);
+    showToast(`Excel daftar tunggakan ${label} berhasil didownload!`, 'success');
+  };
 
   const handleExportUnpaid = (
     targetMonth: string,
@@ -440,6 +649,104 @@ export const PaymentRecapPage: React.FC = () => {
     showToast('Rekap pembayaran berhasil diexport ke format Excel acuan', 'success');
   };
 
+  const renderNonSppCell = (
+    detail: NonSppDetail,
+    categoryName: string,
+    row: RecapRow
+  ) => {
+    if (detail.status === 'Tidak Ada Tagihan') {
+      return (
+        <td
+          key={categoryName}
+          onClick={() => handleCellClickNonSpp(row, categoryName, detail)}
+          title={`Tidak ada kewajiban ${categoryName}. Klik untuk catat pembayaran manual.`}
+          className="py-2.5 px-3 text-right text-slate-400 font-normal border-l border-slate-100 cursor-pointer hover:bg-emerald-50 hover:ring-2 hover:ring-emerald-400 transition select-none"
+        >
+          -
+        </td>
+      );
+    }
+
+    if (detail.status === 'Bebas') {
+      return (
+        <td
+          key={categoryName}
+          onClick={() => handleCellClickNonSpp(row, categoryName, detail)}
+          title={`${categoryName}: Bebas Biaya (Free)`}
+          className="py-2.5 px-3 text-right border-l border-slate-100 cursor-pointer hover:bg-purple-50 transition"
+        >
+          <span className="inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-800">
+            Free
+          </span>
+        </td>
+      );
+    }
+
+    if (detail.status === 'Lunas') {
+      return (
+        <td
+          key={categoryName}
+          onClick={() => handleCellClickNonSpp(row, categoryName, detail)}
+          title={`${categoryName} LUNAS: Rp${detail.paid_amount.toLocaleString('id-ID')}. Klik untuk edit.`}
+          className="py-2.5 px-3 text-right border-l border-slate-100 cursor-pointer hover:bg-emerald-50 hover:ring-2 hover:ring-emerald-400 transition"
+        >
+          <div className="flex flex-col items-end leading-tight">
+            <span className="text-[11px] font-bold text-emerald-800">
+              Rp{detail.paid_amount.toLocaleString('id-ID')}
+            </span>
+            <span className="text-[9px] font-extrabold text-emerald-600 uppercase tracking-tight">
+              ✓ Lunas
+            </span>
+          </div>
+        </td>
+      );
+    }
+
+    if (detail.status === 'Belum Lunas') {
+      return (
+        <td
+          key={categoryName}
+          onClick={() => handleCellClickNonSpp(row, categoryName, detail)}
+          title={`${categoryName} ACC CICILAN: Sudah dibayar Rp${detail.paid_amount.toLocaleString('id-ID')}, Sisa tunggakan Rp${detail.remaining_amount.toLocaleString('id-ID')}. Klik untuk tambah bayar.`}
+          className="py-2.5 px-3 text-right border-l border-slate-100 cursor-pointer bg-amber-50/50 hover:bg-amber-100/70 hover:ring-2 hover:ring-amber-400 transition"
+        >
+          <div className="flex flex-col items-end leading-tight">
+            <div className="flex items-center gap-1">
+              <span className="text-[8px] font-black uppercase px-1 py-0.5 rounded bg-amber-200 text-amber-950 border border-amber-300">
+                ACC
+              </span>
+              <span className="text-[11px] font-bold text-amber-950">
+                Rp{detail.paid_amount.toLocaleString('id-ID')}
+              </span>
+            </div>
+            <span className="text-[9px] font-bold text-rose-600 mt-0.5">
+              Sisa Rp{detail.remaining_amount.toLocaleString('id-ID')}
+            </span>
+          </div>
+        </td>
+      );
+    }
+
+    // Belum Dibayar
+    return (
+      <td
+        key={categoryName}
+        onClick={() => handleCellClickNonSpp(row, categoryName, detail)}
+        title={`${categoryName} BELUM BAYAR: Tagihan Rp${detail.bill_amount.toLocaleString('id-ID')}. Klik untuk bayar.`}
+        className="py-2.5 px-3 text-right border-l border-slate-100 cursor-pointer bg-rose-50/40 hover:bg-rose-100/70 hover:ring-2 hover:ring-rose-400 transition"
+      >
+        <div className="flex flex-col items-end leading-tight">
+          <span className="text-[9.5px] font-black text-rose-700 bg-rose-100/80 border border-rose-200 px-1.5 py-0.5 rounded">
+            Belum Bayar
+          </span>
+          <span className="text-[9.5px] font-bold text-slate-500 mt-0.5">
+            Rp{detail.bill_amount.toLocaleString('id-ID')}
+          </span>
+        </div>
+      </td>
+    );
+  };
+
   return (
     <div className="space-y-2.5 sm:space-y-3.5 pb-8">
       {/* Unified Compact Control Panel (Desktop & Mobile Optimized) */}
@@ -524,7 +831,7 @@ export const PaymentRecapPage: React.FC = () => {
         </div>
 
         {/* Row 2: Compact Responsive Filters (Desktop Toolbar Style) */}
-        <div className="pt-2 border-t border-slate-100 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-1.5 sm:gap-2">
+        <div className="pt-2 border-t border-slate-100 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-1.5 sm:gap-2">
           {/* Search Input - Always visible */}
           <div className="relative col-span-2 sm:col-span-1">
             <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
@@ -597,7 +904,7 @@ export const PaymentRecapPage: React.FC = () => {
           </div>
 
           {/* Status SPP Filter */}
-          <div className={`col-span-2 sm:col-span-1 ${showFilters ? 'block' : 'hidden sm:block'}`}>
+          <div className={`${showFilters ? 'block' : 'hidden sm:block'}`}>
             <select
               value={unpaidMonthFilter}
               onChange={(e) => setUnpaidMonthFilter(e.target.value)}
@@ -615,8 +922,78 @@ export const PaymentRecapPage: React.FC = () => {
               ))}
             </select>
           </div>
+
+          {/* Parameter Tunggakan Non-SPP (Kegiatan / Peralatan / Buku Paket / Pembangunan) */}
+          <div className={`col-span-2 sm:col-span-1 ${showFilters ? 'block' : 'hidden sm:block'}`}>
+            <select
+              value={nonSppArrearsFilter}
+              onChange={(e) => setNonSppArrearsFilter(e.target.value)}
+              className={`w-full py-1.5 px-2.5 text-xs font-bold rounded-lg sm:rounded-xl border focus:outline-none focus:ring-2 focus:ring-amber-500 ${
+                nonSppArrearsFilter !== 'ALL'
+                  ? 'bg-amber-100 border-amber-400 text-amber-950 ring-2 ring-amber-400/50'
+                  : 'border-slate-200 bg-white text-slate-700'
+              }`}
+            >
+              <option value="ALL">Semua Non-SPP</option>
+              <optgroup label="Tunggakan Biaya:">
+                <option value="kegiatan">⚠️ Menunggak Kegiatan</option>
+                <option value="peralatan">⚠️ Menunggak Peralatan</option>
+                <option value="perlengkapan">⚠️ Menunggak Buku Paket / Perlengkapan</option>
+                <option value="pembangunan">⚠️ Menunggak Pembangunan</option>
+                <option value="ujian">⚠️ Menunggak Ujian</option>
+              </optgroup>
+              <optgroup label="Kondisi Global:">
+                <option value="any_nonspp">🚨 Ada Tunggakan Non-SPP (Apa Saja)</option>
+                <option value="all_lunas">✨ Lunas Semua Non-SPP</option>
+              </optgroup>
+            </select>
+          </div>
         </div>
       </div>
+
+      {/* Indicator Banner when filtering by Non-SPP Arrears */}
+      {nonSppArrearsFilter !== 'ALL' && (
+        <div className="bg-gradient-to-r from-amber-500/10 via-orange-50 to-amber-50 border-2 border-amber-400 rounded-xl sm:rounded-2xl p-3 sm:p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 shadow-xs animate-fade-in">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-amber-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+              <AlertTriangle className="w-4 h-4" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-black uppercase tracking-wider text-amber-900 bg-amber-200 px-2 py-0.5 rounded-full">
+                  Filter Tunggakan Aktif
+                </span>
+                <p className="text-xs sm:text-sm font-bold text-amber-950">
+                  {nonSppArrearsFilter === 'all_lunas'
+                    ? 'Daftar Siswa LUNAS Semua Biaya Non-SPP'
+                    : `Daftar Siswa Menunggak ${getNonSppFilterTitle(nonSppArrearsFilter)}`}
+                </p>
+              </div>
+              <p className="text-[11px] sm:text-xs text-amber-900 mt-0.5">
+                Ditemukan <strong className="text-amber-950 underline">{filteredRows.length} siswa</strong>
+                {nonSppArrearsFilter !== 'all_lunas' && (
+                  <> · Total Sisa Tunggakan: <strong className="text-rose-700 font-bold">Rp{totalNonSppArrearsFiltered.toLocaleString('id-ID')}</strong></>
+                )}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <button
+              onClick={() => handleExportNonSppArrears(nonSppArrearsFilter)}
+              className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3.5 py-2 bg-amber-700 hover:bg-amber-800 text-white text-xs font-bold rounded-lg sm:rounded-xl shadow-xs transition"
+            >
+              <Download className="w-3.5 h-3.5 text-amber-200" />
+              <span>Download Excel Tunggakan ({filteredRows.length} Siswa)</span>
+            </button>
+            <button
+              onClick={() => setNonSppArrearsFilter('ALL')}
+              className="px-3 py-2 text-xs font-bold text-amber-900 hover:bg-amber-200/60 rounded-lg transition"
+            >
+              Reset Filter
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Indicator Banner when filtering by unpaid month */}
       {unpaidMonthFilter !== 'ALL' && (
@@ -750,12 +1127,12 @@ export const PaymentRecapPage: React.FC = () => {
                 ))}
 
                 {/* Non SPP Categories */}
-                <th className="py-2.5 px-3 text-right bg-emerald-850/90 border-l border-emerald-800/80 min-w-[105px]">
-                  Perlengkapan
+                <th className="py-2.5 px-3 text-right bg-emerald-850/90 border-l border-emerald-800/80 min-w-[125px]">
+                  Buku Paket / Perlengkapan
                 </th>
-                <th className="py-2.5 px-3 text-right bg-emerald-850/90 min-w-[105px]">Peralatan</th>
-                <th className="py-2.5 px-3 text-right bg-emerald-850/90 min-w-[105px]">Kegiatan</th>
-                <th className="py-2.5 px-3 text-right bg-emerald-850/90 min-w-[105px]">Pembangunan</th>
+                <th className="py-2.5 px-3 text-right bg-emerald-850/90 min-w-[110px]">Peralatan</th>
+                <th className="py-2.5 px-3 text-right bg-emerald-850/90 min-w-[110px]">Kegiatan</th>
+                <th className="py-2.5 px-3 text-right bg-emerald-850/90 min-w-[115px]">Pembangunan</th>
                 <th className="py-2.5 px-3 text-right bg-emerald-850/90 min-w-[85px]">Ujian</th>
                 <th className="py-2.5 px-3 text-right bg-emerald-850/90 min-w-[85px]">Lainnya</th>
               </tr>
@@ -858,48 +1235,12 @@ export const PaymentRecapPage: React.FC = () => {
                     })}
 
                     {/* Non-SPP Columns - CLICK TO EDIT DIRECTLY */}
-                    <td
-                      onClick={() => handleCellClickNonSpp(row, 'Perlengkapan', row.paid_perlengkapan)}
-                      title={`Klik untuk ubah pembayaran Perlengkapan`}
-                      className="py-2.5 px-3 text-right font-semibold text-slate-700 border-l border-slate-100 cursor-pointer hover:bg-emerald-50 hover:ring-2 hover:ring-emerald-400 transition"
-                    >
-                      {row.paid_perlengkapan > 0 ? `Rp${row.paid_perlengkapan.toLocaleString('id-ID')}` : '-'}
-                    </td>
-                    <td
-                      onClick={() => handleCellClickNonSpp(row, 'Peralatan', row.paid_peralatan)}
-                      title={`Klik untuk ubah pembayaran Peralatan`}
-                      className="py-2.5 px-3 text-right font-semibold text-slate-700 cursor-pointer hover:bg-emerald-50 hover:ring-2 hover:ring-emerald-400 transition"
-                    >
-                      {row.paid_peralatan > 0 ? `Rp${row.paid_peralatan.toLocaleString('id-ID')}` : '-'}
-                    </td>
-                    <td
-                      onClick={() => handleCellClickNonSpp(row, 'Kegiatan', row.paid_kegiatan)}
-                      title={`Klik untuk ubah pembayaran Kegiatan`}
-                      className="py-2.5 px-3 text-right font-semibold text-slate-700 cursor-pointer hover:bg-emerald-50 hover:ring-2 hover:ring-emerald-400 transition"
-                    >
-                      {row.paid_kegiatan > 0 ? `Rp${row.paid_kegiatan.toLocaleString('id-ID')}` : '-'}
-                    </td>
-                    <td
-                      onClick={() => handleCellClickNonSpp(row, 'Pembangunan', row.paid_pembangunan)}
-                      title={`Klik untuk ubah pembayaran Pembangunan`}
-                      className="py-2.5 px-3 text-right font-semibold text-slate-700 cursor-pointer hover:bg-emerald-50 hover:ring-2 hover:ring-emerald-400 transition"
-                    >
-                      {row.paid_pembangunan > 0 ? `Rp${row.paid_pembangunan.toLocaleString('id-ID')}` : '-'}
-                    </td>
-                    <td
-                      onClick={() => handleCellClickNonSpp(row, 'Ujian', row.paid_ujian)}
-                      title={`Klik untuk ubah pembayaran Ujian`}
-                      className="py-2.5 px-3 text-right font-semibold text-slate-700 cursor-pointer hover:bg-emerald-50 hover:ring-2 hover:ring-emerald-400 transition"
-                    >
-                      {row.paid_ujian > 0 ? `Rp${row.paid_ujian.toLocaleString('id-ID')}` : '-'}
-                    </td>
-                    <td
-                      onClick={() => handleCellClickNonSpp(row, 'Lainnya', row.paid_lainnya)}
-                      title={`Klik untuk ubah pembayaran Lainnya`}
-                      className="py-2.5 px-3 text-right font-semibold text-slate-700 cursor-pointer hover:bg-emerald-50 hover:ring-2 hover:ring-emerald-400 transition"
-                    >
-                      {row.paid_lainnya > 0 ? `Rp${row.paid_lainnya.toLocaleString('id-ID')}` : '-'}
-                    </td>
+                    {renderNonSppCell(row.perlengkapan_detail, 'Buku Paket / Perlengkapan', row)}
+                    {renderNonSppCell(row.peralatan_detail, 'Peralatan', row)}
+                    {renderNonSppCell(row.kegiatan_detail, 'Kegiatan', row)}
+                    {renderNonSppCell(row.pembangunan_detail, 'Pembangunan', row)}
+                    {renderNonSppCell(row.ujian_detail, 'Ujian', row)}
+                    {renderNonSppCell(row.lainnya_detail, 'Lainnya', row)}
                   </tr>
                 ))
               )}
@@ -1116,85 +1457,137 @@ export const PaymentRecapPage: React.FC = () => {
       })()}
 
       {/* MODAL IN-CELL EDIT: NON-SPP CATEGORY */}
-      {editingNonSpp && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <div>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">
-                  Edit Pembayaran Langsung
-                </span>
-                <h4 className="text-base font-bold text-slate-800 mt-1">
-                  {editingNonSpp.student_name}
-                </h4>
-                <p className="text-xs text-slate-500 font-medium">
-                  Item: <strong>{editingNonSpp.category_name}</strong>
-                </p>
-              </div>
-              <button
-                onClick={() => setEditingNonSpp(null)}
-                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+      {editingNonSpp && (() => {
+        const inputNum = Number(editingNonSpp.input_amount || 0);
+        const sisaHitung = Math.max(0, editingNonSpp.total_bill - inputNum);
+        const isLunas = editingNonSpp.total_bill > 0 && inputNum >= editingNonSpp.total_bill;
+        const isAcc = inputNum > 0 && inputNum < editingNonSpp.total_bill;
 
-            <div className="py-4 space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Nominal Pembayaran Diterima (Rp) *
-                </label>
-                <input
-                  type="number"
-                  value={editingNonSpp.input_amount}
-                  onChange={(e) => setEditingNonSpp({ ...editingNonSpp, input_amount: e.target.value })}
-                  placeholder="Contoh: 2900000"
-                  className="w-full text-sm font-black px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-700 bg-white"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Tanggal Pembayaran
-                </label>
-                <input
-                  type="date"
-                  value={editingNonSpp.payment_date}
-                  onChange={(e) => setEditingNonSpp({ ...editingNonSpp, payment_date: e.target.value })}
-                  className="w-full text-xs font-bold px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-700 bg-white"
-                />
-              </div>
-
-              <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
+        return (
+          <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in">
+            <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                <div>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">
+                    Edit Pembayaran Non-SPP
+                  </span>
+                  <h4 className="text-base font-bold text-slate-800 mt-1">
+                    {editingNonSpp.student_name}
+                  </h4>
+                  <p className="text-xs text-slate-500 font-medium">
+                    Item Biaya: <strong>{editingNonSpp.category_name}</strong>
+                  </p>
+                </div>
                 <button
-                  type="button"
-                  onClick={() => setEditingNonSpp({ ...editingNonSpp, input_amount: '0' })}
-                  className="px-3 py-2 text-rose-600 hover:bg-rose-50 text-xs font-semibold rounded-xl transition"
+                  onClick={() => setEditingNonSpp(null)}
+                  className="text-slate-400 hover:text-slate-600 p-1 rounded-lg"
                 >
-                  Reset Rp0
+                  <X className="w-5 h-5" />
                 </button>
+              </div>
 
-                <div className="flex items-center gap-2">
+              <div className="py-4 space-y-4">
+                {/* Ringkasan Kewajiban */}
+                <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80 grid grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <span className="text-slate-500 block text-[11px]">Total Kewajiban</span>
+                    <span className="font-bold text-slate-800 text-sm">
+                      Rp{editingNonSpp.total_bill.toLocaleString('id-ID')}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 block text-[11px]">Status Saat Ini</span>
+                    <span className="font-bold text-amber-700 text-xs">
+                      {editingNonSpp.remaining > 0
+                        ? (editingNonSpp.current_paid > 0 ? `Sisa Rp${editingNonSpp.remaining.toLocaleString('id-ID')}` : 'Belum Bayar')
+                        : (editingNonSpp.total_bill > 0 ? '✓ Lunas' : 'Tidak Ada Tagihan')}
+                    </span>
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-xs font-bold text-slate-700">
+                      Nominal Pembayaran Masuk (Rp) *
+                    </label>
+                    {editingNonSpp.total_bill > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setEditingNonSpp({ ...editingNonSpp, input_amount: String(editingNonSpp.total_bill) })}
+                        className="text-[11px] font-bold text-emerald-700 hover:text-emerald-800 hover:underline"
+                      >
+                        ⚡ Set Lunas Penuh
+                      </button>
+                    )}
+                  </div>
+                  <input
+                    type="number"
+                    value={editingNonSpp.input_amount}
+                    onChange={(e) => setEditingNonSpp({ ...editingNonSpp, input_amount: e.target.value })}
+                    placeholder="Contoh: 1500000"
+                    className="w-full text-base font-black px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-700 bg-white"
+                  />
+                  
+                  {/* Status Preview */}
+                  <div className="mt-1.5 flex items-center justify-between text-[11px]">
+                    <span className="text-slate-500">Prediksi Status:</span>
+                    {isLunas ? (
+                      <span className="font-extrabold text-emerald-700">✓ Lunas Penuh</span>
+                    ) : isAcc ? (
+                      <span className="font-extrabold text-amber-700">
+                        ACC Cicilan (Sisa Rp{sisaHitung.toLocaleString('id-ID')})
+                      </span>
+                    ) : inputNum === 0 ? (
+                      <span className="font-extrabold text-rose-600">Belum Bayar (Rp0)</span>
+                    ) : (
+                      <span className="font-bold text-slate-700">Manual (Rp{inputNum.toLocaleString('id-ID')})</span>
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Tanggal Pembayaran
+                  </label>
+                  <input
+                    type="date"
+                    value={editingNonSpp.payment_date}
+                    onChange={(e) => setEditingNonSpp({ ...editingNonSpp, payment_date: e.target.value })}
+                    className="w-full text-xs font-bold px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-700 bg-white"
+                  />
+                </div>
+
+                <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
                   <button
                     type="button"
-                    onClick={() => setEditingNonSpp(null)}
-                    className="px-4 py-2 text-slate-600 hover:bg-slate-100 text-xs font-semibold rounded-xl transition"
+                    onClick={() => setEditingNonSpp({ ...editingNonSpp, input_amount: '0' })}
+                    className="px-3 py-2 text-rose-600 hover:bg-rose-50 text-xs font-semibold rounded-xl transition"
                   >
-                    Batal
+                    Reset Rp0
                   </button>
-                  <button
-                    type="button"
-                    onClick={handleSaveNonSppEdit}
-                    className="px-5 py-2 bg-emerald-800 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs transition"
-                  >
-                    Simpan Nilai
-                  </button>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setEditingNonSpp(null)}
+                      className="px-4 py-2 text-slate-600 hover:bg-slate-100 text-xs font-semibold rounded-xl transition"
+                    >
+                      Batal
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleSaveNonSppEdit}
+                      className="px-5 py-2 bg-emerald-800 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs transition"
+                    >
+                      Simpan Nilai
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* MODAL EXPORT SISWA BELUM BAYAR SPP */}
       {showUnpaidExportModal && (() => {
