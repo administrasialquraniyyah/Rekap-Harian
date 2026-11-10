@@ -59,12 +59,14 @@ interface RecapRow {
   administrative_status: string;
   spp_nominal: number;
   sppMonths: Record<string, SppCellData>;
+  paid_buku: number;
   paid_perlengkapan: number;
   paid_peralatan: number;
   paid_kegiatan: number;
   paid_pembangunan: number;
   paid_ujian: number;
   paid_lainnya: number;
+  buku_detail: NonSppDetail;
   kegiatan_detail: NonSppDetail;
   peralatan_detail: NonSppDetail;
   perlengkapan_detail: NonSppDetail;
@@ -263,9 +265,10 @@ export const PaymentRecapPage: React.FC = () => {
           };
         };
 
-        const kegiatanDetail = getNonSppDetail(['kegiatan'], 'Kegiatan');
+        const bukuDetail = getNonSppDetail(['buku'], 'Buku Paket');
+        const perlengkapanDetail = getNonSppDetail(['perlengkapan'], 'Perlengkapan');
         const peralatanDetail = getNonSppDetail(['peralatan'], 'Peralatan');
-        const perlengkapanDetail = getNonSppDetail(['perlengkapan', 'buku'], 'Buku Paket / Perlengkapan');
+        const kegiatanDetail = getNonSppDetail(['kegiatan'], 'Kegiatan');
         const pembangunanDetail = getNonSppDetail(['pembangunan', 'gedung'], 'Pembangunan');
         const ujianDetail = getNonSppDetail(['ujian'], 'Ujian');
         const lainnyaDetail = getNonSppDetail(['lainnya'], 'Lainnya');
@@ -279,12 +282,14 @@ export const PaymentRecapPage: React.FC = () => {
           administrative_status: enr?.administrative_status || 'Mampu',
           spp_nominal: sppNominal,
           sppMonths: sppMonthsMap,
+          paid_buku: bukuDetail.paid_amount,
           paid_perlengkapan: perlengkapanDetail.paid_amount,
           paid_peralatan: peralatanDetail.paid_amount,
           paid_kegiatan: kegiatanDetail.paid_amount,
           paid_pembangunan: pembangunanDetail.paid_amount,
           paid_ujian: ujianDetail.paid_amount,
           paid_lainnya: lainnyaDetail.paid_amount,
+          buku_detail: bukuDetail,
           kegiatan_detail: kegiatanDetail,
           peralatan_detail: peralatanDetail,
           perlengkapan_detail: perlengkapanDetail,
@@ -421,33 +426,37 @@ export const PaymentRecapPage: React.FC = () => {
       matchesUnpaidMonth = cell?.status === 'Belum Dibayar' || cell?.status === 'Belum Lunas';
     }
 
-    // Filter by Non-SPP Arrears (kegiatan, peralatan, buku paket / perlengkapan, pembangunan, dll)
+    // Filter by Non-SPP Arrears (kegiatan, peralatan, buku paket, perlengkapan, pembangunan, dll)
     let matchesNonSppArrears = true;
-    if (nonSppArrearsFilter === 'kegiatan') {
-      matchesNonSppArrears = row.kegiatan_detail.status === 'Belum Dibayar' || row.kegiatan_detail.status === 'Belum Lunas';
+    if (nonSppArrearsFilter === 'buku') {
+      matchesNonSppArrears = row.buku_detail.status === 'Belum Dibayar' || row.buku_detail.status === 'Belum Lunas';
+    } else if (nonSppArrearsFilter === 'perlengkapan') {
+      matchesNonSppArrears = row.perlengkapan_detail.status === 'Belum Dibayar' || row.perlengkapan_detail.status === 'Belum Lunas';
     } else if (nonSppArrearsFilter === 'peralatan') {
       matchesNonSppArrears = row.peralatan_detail.status === 'Belum Dibayar' || row.peralatan_detail.status === 'Belum Lunas';
-    } else if (nonSppArrearsFilter === 'perlengkapan' || nonSppArrearsFilter === 'buku') {
-      matchesNonSppArrears = row.perlengkapan_detail.status === 'Belum Dibayar' || row.perlengkapan_detail.status === 'Belum Lunas';
+    } else if (nonSppArrearsFilter === 'kegiatan') {
+      matchesNonSppArrears = row.kegiatan_detail.status === 'Belum Dibayar' || row.kegiatan_detail.status === 'Belum Lunas';
     } else if (nonSppArrearsFilter === 'pembangunan') {
       matchesNonSppArrears = row.pembangunan_detail.status === 'Belum Dibayar' || row.pembangunan_detail.status === 'Belum Lunas';
     } else if (nonSppArrearsFilter === 'ujian') {
       matchesNonSppArrears = row.ujian_detail.status === 'Belum Dibayar' || row.ujian_detail.status === 'Belum Lunas';
     } else if (nonSppArrearsFilter === 'any_nonspp') {
       matchesNonSppArrears =
-        row.kegiatan_detail.remaining_amount > 0 ||
-        row.peralatan_detail.remaining_amount > 0 ||
+        row.buku_detail.remaining_amount > 0 ||
         row.perlengkapan_detail.remaining_amount > 0 ||
+        row.peralatan_detail.remaining_amount > 0 ||
+        row.kegiatan_detail.remaining_amount > 0 ||
         row.pembangunan_detail.remaining_amount > 0 ||
         row.ujian_detail.remaining_amount > 0;
     } else if (nonSppArrearsFilter === 'all_lunas') {
       matchesNonSppArrears =
-        row.kegiatan_detail.remaining_amount === 0 &&
-        row.peralatan_detail.remaining_amount === 0 &&
+        row.buku_detail.remaining_amount === 0 &&
         row.perlengkapan_detail.remaining_amount === 0 &&
+        row.peralatan_detail.remaining_amount === 0 &&
+        row.kegiatan_detail.remaining_amount === 0 &&
         row.pembangunan_detail.remaining_amount === 0 &&
         row.ujian_detail.remaining_amount === 0 &&
-        (row.kegiatan_detail.bill_amount > 0 || row.peralatan_detail.bill_amount > 0 || row.perlengkapan_detail.bill_amount > 0 || row.pembangunan_detail.bill_amount > 0);
+        (row.buku_detail.bill_amount > 0 || row.perlengkapan_detail.bill_amount > 0 || row.peralatan_detail.bill_amount > 0 || row.kegiatan_detail.bill_amount > 0 || row.pembangunan_detail.bill_amount > 0);
     }
 
     return matchesSearch && matchesUnit && matchesGrade && matchesStatus && matchesStudentStatus && matchesUnpaidMonth && matchesNonSppArrears;
@@ -455,13 +464,14 @@ export const PaymentRecapPage: React.FC = () => {
 
   const getNonSppFilterTitle = (filter: string) => {
     switch (filter) {
-      case 'kegiatan':
-        return 'Kegiatan';
+      case 'buku':
+        return 'Buku Paket';
+      case 'perlengkapan':
+        return 'Perlengkapan';
       case 'peralatan':
         return 'Peralatan';
-      case 'perlengkapan':
-      case 'buku':
-        return 'Buku Paket / Perlengkapan';
+      case 'kegiatan':
+        return 'Kegiatan';
       case 'pembangunan':
         return 'Pembangunan';
       case 'ujian':
@@ -476,12 +486,13 @@ export const PaymentRecapPage: React.FC = () => {
   };
 
   const totalNonSppArrearsFiltered = filteredRows.reduce((sum, r) => {
-    if (nonSppArrearsFilter === 'kegiatan') return sum + r.kegiatan_detail.remaining_amount;
+    if (nonSppArrearsFilter === 'buku') return sum + r.buku_detail.remaining_amount;
+    if (nonSppArrearsFilter === 'perlengkapan') return sum + r.perlengkapan_detail.remaining_amount;
     if (nonSppArrearsFilter === 'peralatan') return sum + r.peralatan_detail.remaining_amount;
-    if (nonSppArrearsFilter === 'perlengkapan' || nonSppArrearsFilter === 'buku') return sum + r.perlengkapan_detail.remaining_amount;
+    if (nonSppArrearsFilter === 'kegiatan') return sum + r.kegiatan_detail.remaining_amount;
     if (nonSppArrearsFilter === 'pembangunan') return sum + r.pembangunan_detail.remaining_amount;
     if (nonSppArrearsFilter === 'ujian') return sum + r.ujian_detail.remaining_amount;
-    return sum + r.kegiatan_detail.remaining_amount + r.peralatan_detail.remaining_amount + r.perlengkapan_detail.remaining_amount + r.pembangunan_detail.remaining_amount + r.ujian_detail.remaining_amount;
+    return sum + r.buku_detail.remaining_amount + r.perlengkapan_detail.remaining_amount + r.peralatan_detail.remaining_amount + r.kegiatan_detail.remaining_amount + r.pembangunan_detail.remaining_amount + r.ujian_detail.remaining_amount;
   }, 0);
 
   const handleExportNonSppArrears = (filterType: string) => {
@@ -497,21 +508,26 @@ export const PaymentRecapPage: React.FC = () => {
       let sisa = 0;
       let status = '';
 
-      if (filterType === 'kegiatan') {
-        tagihan = r.kegiatan_detail.bill_amount;
-        terbayar = r.kegiatan_detail.paid_amount;
-        sisa = r.kegiatan_detail.remaining_amount;
-        status = r.kegiatan_detail.status;
+      if (filterType === 'buku') {
+        tagihan = r.buku_detail.bill_amount;
+        terbayar = r.buku_detail.paid_amount;
+        sisa = r.buku_detail.remaining_amount;
+        status = r.buku_detail.status;
+      } else if (filterType === 'perlengkapan') {
+        tagihan = r.perlengkapan_detail.bill_amount;
+        terbayar = r.perlengkapan_detail.paid_amount;
+        sisa = r.perlengkapan_detail.remaining_amount;
+        status = r.perlengkapan_detail.status;
       } else if (filterType === 'peralatan') {
         tagihan = r.peralatan_detail.bill_amount;
         terbayar = r.peralatan_detail.paid_amount;
         sisa = r.peralatan_detail.remaining_amount;
         status = r.peralatan_detail.status;
-      } else if (filterType === 'perlengkapan' || filterType === 'buku') {
-        tagihan = r.perlengkapan_detail.bill_amount;
-        terbayar = r.perlengkapan_detail.paid_amount;
-        sisa = r.perlengkapan_detail.remaining_amount;
-        status = r.perlengkapan_detail.status;
+      } else if (filterType === 'kegiatan') {
+        tagihan = r.kegiatan_detail.bill_amount;
+        terbayar = r.kegiatan_detail.paid_amount;
+        sisa = r.kegiatan_detail.remaining_amount;
+        status = r.kegiatan_detail.status;
       } else if (filterType === 'pembangunan') {
         tagihan = r.pembangunan_detail.bill_amount;
         terbayar = r.pembangunan_detail.paid_amount;
@@ -523,9 +539,9 @@ export const PaymentRecapPage: React.FC = () => {
         sisa = r.ujian_detail.remaining_amount;
         status = r.ujian_detail.status;
       } else {
-        tagihan = r.kegiatan_detail.bill_amount + r.peralatan_detail.bill_amount + r.perlengkapan_detail.bill_amount + r.pembangunan_detail.bill_amount + r.ujian_detail.bill_amount;
-        terbayar = r.kegiatan_detail.paid_amount + r.peralatan_detail.paid_amount + r.perlengkapan_detail.paid_amount + r.pembangunan_detail.paid_amount + r.ujian_detail.paid_amount;
-        sisa = r.kegiatan_detail.remaining_amount + r.peralatan_detail.remaining_amount + r.perlengkapan_detail.remaining_amount + r.pembangunan_detail.remaining_amount + r.ujian_detail.remaining_amount;
+        tagihan = r.buku_detail.bill_amount + r.perlengkapan_detail.bill_amount + r.peralatan_detail.bill_amount + r.kegiatan_detail.bill_amount + r.pembangunan_detail.bill_amount + r.ujian_detail.bill_amount;
+        terbayar = r.buku_detail.paid_amount + r.perlengkapan_detail.paid_amount + r.peralatan_detail.paid_amount + r.kegiatan_detail.paid_amount + r.pembangunan_detail.paid_amount + r.ujian_detail.paid_amount;
+        sisa = r.buku_detail.remaining_amount + r.perlengkapan_detail.remaining_amount + r.peralatan_detail.remaining_amount + r.kegiatan_detail.remaining_amount + r.pembangunan_detail.remaining_amount + r.ujian_detail.remaining_amount;
         status = sisa > 0 ? (terbayar > 0 ? 'Belum Lunas' : 'Belum Dibayar') : 'Lunas';
       }
 
@@ -636,6 +652,7 @@ export const PaymentRecapPage: React.FC = () => {
       spp_april: r.sppMonths['April']?.displayValue,
       spp_mei: r.sppMonths['Mei']?.displayValue,
       spp_juni: r.sppMonths['Juni']?.displayValue,
+      paid_buku: r.paid_buku,
       paid_perlengkapan: r.paid_perlengkapan,
       paid_peralatan: r.paid_peralatan,
       paid_kegiatan: r.paid_kegiatan,
@@ -936,9 +953,10 @@ export const PaymentRecapPage: React.FC = () => {
             >
               <option value="ALL">Semua Non-SPP</option>
               <optgroup label="Tunggakan Biaya:">
-                <option value="kegiatan">⚠️ Menunggak Kegiatan</option>
+                <option value="buku">⚠️ Menunggak Buku Paket</option>
+                <option value="perlengkapan">⚠️ Menunggak Perlengkapan</option>
                 <option value="peralatan">⚠️ Menunggak Peralatan</option>
-                <option value="perlengkapan">⚠️ Menunggak Buku Paket / Perlengkapan</option>
+                <option value="kegiatan">⚠️ Menunggak Kegiatan</option>
                 <option value="pembangunan">⚠️ Menunggak Pembangunan</option>
                 <option value="ujian">⚠️ Menunggak Ujian</option>
               </optgroup>
@@ -1127,8 +1145,11 @@ export const PaymentRecapPage: React.FC = () => {
                 ))}
 
                 {/* Non SPP Categories */}
-                <th className="py-2.5 px-3 text-right bg-emerald-850/90 border-l border-emerald-800/80 min-w-[125px]">
-                  Buku Paket / Perlengkapan
+                <th className="py-2.5 px-3 text-right bg-emerald-850/90 border-l border-emerald-800/80 min-w-[105px]">
+                  Buku Paket
+                </th>
+                <th className="py-2.5 px-3 text-right bg-emerald-850/90 min-w-[105px]">
+                  Perlengkapan
                 </th>
                 <th className="py-2.5 px-3 text-right bg-emerald-850/90 min-w-[110px]">Peralatan</th>
                 <th className="py-2.5 px-3 text-right bg-emerald-850/90 min-w-[110px]">Kegiatan</th>
@@ -1140,13 +1161,13 @@ export const PaymentRecapPage: React.FC = () => {
             <tbody className="divide-y divide-slate-100 font-medium">
               {isLoading ? (
                 <tr>
-                  <td colSpan={24} className="py-16 text-center text-slate-400">
+                  <td colSpan={25} className="py-16 text-center text-slate-400">
                     Memuat matriks rekap pembayaran...
                   </td>
                 </tr>
               ) : filteredRows.length === 0 ? (
                 <tr>
-                  <td colSpan={24} className="py-16 text-center text-slate-400">
+                  <td colSpan={25} className="py-16 text-center text-slate-400">
                     Tidak ada siswa ditemukan yang cocok dengan filter.
                   </td>
                 </tr>
@@ -1235,7 +1256,8 @@ export const PaymentRecapPage: React.FC = () => {
                     })}
 
                     {/* Non-SPP Columns - CLICK TO EDIT DIRECTLY */}
-                    {renderNonSppCell(row.perlengkapan_detail, 'Buku Paket / Perlengkapan', row)}
+                    {renderNonSppCell(row.buku_detail, 'Buku Paket', row)}
+                    {renderNonSppCell(row.perlengkapan_detail, 'Perlengkapan', row)}
                     {renderNonSppCell(row.peralatan_detail, 'Peralatan', row)}
                     {renderNonSppCell(row.kegiatan_detail, 'Kegiatan', row)}
                     {renderNonSppCell(row.pembangunan_detail, 'Pembangunan', row)}

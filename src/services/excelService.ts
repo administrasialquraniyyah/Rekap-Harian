@@ -572,6 +572,7 @@ export const excelService = {
       'April': item.spp_april,
       'Mei': item.spp_mei,
       'Juni': item.spp_juni,
+      'BUKU PAKET': item.paid_buku || 0,
       'PERLENGKAPAN': item.paid_perlengkapan || 0,
       'PERALATAN': item.paid_peralatan || 0,
       'KEGIATAN': item.paid_kegiatan || 0,
