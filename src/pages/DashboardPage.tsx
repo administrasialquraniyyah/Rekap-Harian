@@ -318,6 +318,7 @@ export const DashboardPage: React.FC = () => {
         smaTagihan: number; smaBayar: number;
       }> = {
         'SPP': { smpTagihan: 0, smpBayar: 0, smaTagihan: 0, smaBayar: 0 },
+        'Buku Paket': { smpTagihan: 0, smpBayar: 0, smaTagihan: 0, smaBayar: 0 },
         'Perlengkapan': { smpTagihan: 0, smpBayar: 0, smaTagihan: 0, smaBayar: 0 },
         'Peralatan': { smpTagihan: 0, smpBayar: 0, smaTagihan: 0, smaBayar: 0 },
         'Kegiatan': { smpTagihan: 0, smpBayar: 0, smaTagihan: 0, smaBayar: 0 },
@@ -340,6 +341,7 @@ export const DashboardPage: React.FC = () => {
 
         let catName = bill.catName || 'Lainnya';
         if (catName.includes('Syahriyyah') || catName.includes('SPP')) catName = 'SPP';
+        else if (catName.toLowerCase().includes('buku')) catName = 'Buku Paket';
         else if (catName.includes('Perlengkapan')) catName = 'Perlengkapan';
         else if (catName.includes('Peralatan')) catName = 'Peralatan';
         else if (catName.includes('Kegiatan')) catName = 'Kegiatan';
@@ -417,7 +419,7 @@ export const DashboardPage: React.FC = () => {
       setPaidStudentsCount(countPaid);
       setArrearsStudentsCount(countArrears);
 
-      const catOrder = ['SPP', 'Perlengkapan', 'Peralatan', 'Kegiatan', 'Pembangunan', 'Ujian', 'Lainnya'];
+      const catOrder = ['SPP', 'Buku Paket', 'Perlengkapan', 'Peralatan', 'Kegiatan', 'Pembangunan', 'Ujian', 'Lainnya'];
       const builtSummaries: CategorySummary[] = catOrder.map((catKey) => {
         const data = catMap[catKey];
         const sisaSMP = Math.max(0, data.smpTagihan - data.smpBayar);

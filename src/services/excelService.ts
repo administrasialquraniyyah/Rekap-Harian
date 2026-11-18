@@ -70,6 +70,7 @@ export const excelService = {
       unit: tagihanHeader.indexOf('JENJANG'),
       grade: tagihanHeader.indexOf('KELAS'),
       spp: tagihanHeader.indexOf('SPP'),
+      buku: tagihanHeader.findIndex((h: string) => h.includes('BUKU')),
       perlengkapan: tagihanHeader.indexOf('PERLENGKAPAN'),
       peralatan: tagihanHeader.indexOf('PERALATAN'),
       kegiatan: tagihanHeader.indexOf('KEGIATAN'),
@@ -165,6 +166,7 @@ export const excelService = {
 
       // Non-SPP bills
       const otherBills = [
+        { categoryName: 'Buku Paket', amount: Number(row[colIdx.buku] || 0) },
         { categoryName: 'Perlengkapan', amount: Number(row[colIdx.perlengkapan] || 0) },
         { categoryName: 'Peralatan', amount: Number(row[colIdx.peralatan] || 0) },
         { categoryName: 'Kegiatan', amount: Number(row[colIdx.kegiatan] || 0) },
@@ -233,6 +235,10 @@ export const excelService = {
           if (idxBayarPemb !== -1 && Number(bayarRow[idxBayarPemb] || 0) > 0) {
             otherPayments.push({ categoryName: 'Perlengkapan', paidAmount: Number(bayarRow[idxBayarPemb]) });
           }
+          const bIdx = bayarHeader.findIndex((h: string) => h.toUpperCase().includes('BUKU'));
+          if (bIdx !== -1 && Number(bayarRow[bIdx] || 0) > 0) {
+            otherPayments.push({ categoryName: 'Buku Paket', paidAmount: Number(bayarRow[bIdx]) });
+          }
           const uIdx = bayarHeader.findIndex((h: string) => h.toUpperCase().includes('UJIAN'));
           if (uIdx !== -1 && Number(bayarRow[uIdx] || 0) > 0) {
             otherPayments.push({ categoryName: 'Ujian', paidAmount: Number(bayarRow[uIdx]) });
@@ -243,13 +249,13 @@ export const excelService = {
           }
         } else {
           // Normal mapping by header name
-          const catCols = ['PERLENGKAPAN', 'PERALATAN', 'KEGIATAN', 'PEMBANGUNAN', 'UJIAN', 'LAINNYA'];
+          const catCols = ['BUKU PAKET', 'PERLENGKAPAN', 'PERALATAN', 'KEGIATAN', 'PEMBANGUNAN', 'UJIAN', 'LAINNYA'];
           catCols.forEach((cat) => {
             const cIdx = bayarHeader.findIndex((h: string) => h.toUpperCase().includes(cat));
             if (cIdx !== -1) {
               const pVal = Number(bayarRow[cIdx] || 0);
               if (pVal > 0) {
-                const properName = cat === 'LAINNYA' ? 'Lainnya' : (cat.charAt(0) + cat.slice(1).toLowerCase());
+                const properName = cat === 'LAINNYA' ? 'Lainnya' : (cat === 'BUKU PAKET' ? 'Buku Paket' : (cat.charAt(0) + cat.slice(1).toLowerCase()));
                 otherPayments.push({ categoryName: properName, paidAmount: pVal });
               }
             }
@@ -302,7 +308,7 @@ export const excelService = {
     (categories || []).forEach((c) => catMap.set(c.name.toLowerCase(), c.id));
 
     // Ensure standard categories exist
-    const standardCategories = ['SPP', 'Perlengkapan', 'Peralatan', 'Kegiatan', 'Pembangunan', 'Ujian', 'Lainnya'];
+    const standardCategories = ['SPP', 'Buku Paket', 'Perlengkapan', 'Peralatan', 'Kegiatan', 'Pembangunan', 'Ujian', 'Lainnya'];
     for (const catName of standardCategories) {
       if (!catMap.has(catName.toLowerCase())) {
         const { data: newCat } = await supabase
@@ -741,6 +747,7 @@ export const excelService = {
         "JENJANG": "SMP IT",
         "KELAS": "VII A",
         "SPP": 1335000,
+        "BUKU PAKET": 350000,
         "PERLENGKAPAN": 500000,
         "PERALATAN": 250000,
         "KEGIATAN": 300000,
@@ -758,6 +765,7 @@ export const excelService = {
         "JENJANG": "SMA IT",
         "KELAS": "X IPA",
         "SPP": 0,
+        "BUKU PAKET": 350000,
         "PERLENGKAPAN": 500000,
         "PERALATAN": 250000,
         "KEGIATAN": 300000,
@@ -775,6 +783,7 @@ export const excelService = {
         "JENJANG": "SMP IT",
         "KELAS": "VIII B",
         "SPP": 1250000,
+        "BUKU PAKET": 0,
         "PERLENGKAPAN": 0,
         "PERALATAN": 0,
         "KEGIATAN": 300000,
@@ -806,6 +815,7 @@ export const excelService = {
         "April": "",
         "Mei": "",
         "Juni": "",
+        "BUKU PAKET": 350000,
         "PERLENGKAPAN": 500000,
         "PERALATAN": 250000,
         "KEGIATAN": 0,
@@ -835,6 +845,7 @@ export const excelService = {
         "April": "Free",
         "Mei": "Free",
         "Juni": "Free",
+        "BUKU PAKET": 350000,
         "PERLENGKAPAN": 500000,
         "PERALATAN": 250000,
         "KEGIATAN": 300000,
@@ -864,6 +875,7 @@ export const excelService = {
         "April": "",
         "Mei": "",
         "Juni": "",
+        "BUKU PAKET": 0,
         "PERLENGKAPAN": 0,
         "PERALATAN": 0,
         "KEGIATAN": 300000,
