@@ -1,0 +1,43 @@
+name: Sinkronisasi BPI Maja Otomatis
+
+on:
+  schedule:
+    # Berjalan setiap hari pukul 08:00 WIB (01:00 UTC)
+    - cron: '0 1 * * *'
+  workflow_dispatch:
+    # Memungkinkan pemicuan manual kapan saja dari antarmuka GitHub Actions
+
+jobs:
+  bpi-sync:
+    name: Eksekusi Cloud Worker BPI
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js Runtime
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Dependensi Automation
+        run: |
+          npm install @supabase/supabase-js playwright dotenv
+
+      - name: Install Playwright Chromium & Dependencies
+        run: |
+          npx playwright install chromium --with-deps
+
+      - name: Jalankan Sinkronisasi BPI Maja ke Supabase
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL || 'https://iryeosxfpeeeeeyzonsa.supabase.co' }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          BPI_URL: ${{ secrets.BPI_URL || 'https://bpi.maja.id/payment' }}
+          BPI_USERNAME: ${{ secrets.BPI_USERNAME }}
+          BPI_PASSWORD: ${{ secrets.BPI_PASSWORD }}
+          HEADLESS: 'true'
+        run: |
+          node automation/bpi_sync.mjs
