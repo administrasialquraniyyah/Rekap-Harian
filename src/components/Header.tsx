@@ -1,5 +1,5 @@
-import React from 'react';
-import { Menu, Database, ShieldCheck, LogOut, User as UserIcon, Monitor, Smartphone, ExternalLink } from 'lucide-react';
+import React, { useState } from 'react';
+import { Menu, Database, ShieldCheck, LogOut, User as UserIcon, Monitor, Smartphone, ExternalLink, Clock, CheckCircle2, X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { SDIT_PORTAL_URL } from '../lib/crossDatabase';
@@ -22,6 +22,7 @@ export const Header: React.FC<HeaderProps> = ({
   onToggleDesktopMode,
 }) => {
   const { user, signOut } = useAuth();
+  const [showBpiModal, setShowBpiModal] = useState(false);
 
   return (
     <header className="sticky top-0 z-30 bg-white/90 backdrop-blur-md border-b border-slate-200/80 px-2.5 sm:px-6 py-2 sm:py-3 flex items-center justify-between shadow-xs">
@@ -96,6 +97,17 @@ export const Header: React.FC<HeaderProps> = ({
           />
         </div>
 
+        {/* BPI Maja Auto-Sync Pill & Modal Trigger */}
+        <button
+          onClick={() => setShowBpiModal(true)}
+          className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold transition border border-emerald-950 bg-emerald-900 text-amber-300 hover:bg-emerald-850 shadow-xs cursor-pointer"
+          title="Klik untuk melihat Status & Jadwal Sinkronisasi Otomatis BPI Maja"
+        >
+          <Clock className="w-3.5 h-3.5 text-amber-300" />
+          <span className="text-[11px] font-bold whitespace-nowrap">BPI: Auto 08:00</span>
+          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+        </button>
+
         {/* Switcher ke Portal TK & SD IT */}
         <a
           href={SDIT_PORTAL_URL}
@@ -131,6 +143,83 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Modal Dialog Info Integrasi BPI Maja */}
+      {showBpiModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-slate-200 overflow-hidden">
+            <div className="bg-linear-to-r from-emerald-950 to-emerald-900 px-5 py-4 text-white flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-amber-400/20 text-amber-300 flex items-center justify-center">
+                  <Clock className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold leading-tight">Sinkronisasi BPI Maja</h3>
+                  <p className="text-[11px] text-emerald-200">Integrasi Otomatis Pembayaran Siswa</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowBpiModal(false)}
+                className="p-1 text-emerald-300 hover:text-white rounded-lg hover:bg-white/10 transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4 text-xs text-slate-600">
+              <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-200 flex items-start gap-2.5">
+                <CheckCircle2 className="w-4 h-4 text-emerald-700 shrink-0 mt-0.5" />
+                <div className="space-y-1">
+                  <p className="font-bold text-emerald-950">Status Integrasi: AKTIF</p>
+                  <p className="text-[11px] text-emerald-850 leading-relaxed">
+                    Cloud Worker terjadwal otomatis di GitHub Actions untuk mengambil transaksi mutasi BPI Maja setiap pagi.
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2.5">
+                <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-200">
+                  <p className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Jadwal Harian</p>
+                  <p className="font-bold text-slate-800 text-xs mt-0.5">Pukul 08:00 WIB</p>
+                  <p className="text-[10px] text-slate-500">Setiap hari (Otomatis)</p>
+                </div>
+                <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-200">
+                  <p className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Anti-Duplikat</p>
+                  <p className="font-bold text-emerald-700 text-xs mt-0.5">Idempotensi Aktif</p>
+                  <p className="text-[10px] text-slate-500">Cegah input ganda</p>
+                </div>
+              </div>
+
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-1.5">
+                <p className="font-bold text-slate-700">Metode Kerja Sinkronisasi:</p>
+                <ul className="list-disc list-inside space-y-1 text-[11px] text-slate-600">
+                  <li>Login otomatis ke <span className="font-mono text-emerald-800">bpi.maja.id/payment</span>.</li>
+                  <li>Mencocokkan transaksi siswa via NIS dan Nama.</li>
+                  <li>Transaksi langsung masuk ke Supabase &amp; Rekap Harian.</li>
+                </ul>
+              </div>
+
+              <div className="pt-2 flex items-center justify-between gap-2">
+                <a
+                  href="https://github.com/administrasialquraniyyah/Rekap-Harian/actions"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 px-3 py-2 bg-emerald-900 text-amber-300 font-bold rounded-xl hover:bg-emerald-850 transition shadow-xs text-xs"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  <span>Jalankan Manual (GitHub)</span>
+                </a>
+                <button
+                  onClick={() => setShowBpiModal(false)}
+                  className="px-4 py-2 border border-slate-300 hover:bg-slate-100 text-slate-700 font-semibold rounded-xl transition text-xs"
+                >
+                  Tutup
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </header>
   );
 };
